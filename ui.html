@@ -251,6 +251,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
     <button class="tab-btn" data-tab="spacing">📐 Spacing <span class="tab-cnt" id="cnt-spacing">—</span></button>
     <button class="tab-btn" data-tab="color">🎨 Color <span class="tab-cnt" id="cnt-color">—</span></button>
     <button class="tab-btn" data-tab="typography">📝 Typography <span class="tab-cnt" id="cnt-typography">—</span></button>
+    <button class="tab-btn" data-tab="editor">📄 Editor <span class="tab-cnt" id="cnt-editor">—</span></button>
   </div>
 </div>
 
@@ -423,6 +424,7 @@ function getItems(){
 
 function render(){
   if (tab === 'typography') { renderSetupTab(); return; }
+  if (tab === 'editor')    { renderEditorTab(); return; }
 
   const all     = getItems().filter(i=>!removedKeys.has(i.key));
   const hidden  = getItems().filter(i=>removedKeys.has(i.key));
@@ -481,18 +483,12 @@ function render(){
 
 // ─── Typography tab renderer ──────────────────────────────────────────────────
 function renderSetupTab() {
-  const setup = data?.setup ?? {};
+  const setup = data?.typography ?? {};
   const ROLES = ['h1','h2','h3','h4','h5','h6','body-text'];
   const detected = ROLES.filter(r => setup[r]).length;
 
-  const rows = ROLES.map(role => {
+  const rows = ROLES.filter(role => setup[role]).map(role => {
     const e = setup[role];
-    if (!e) {
-      return `<div class="setup-row-item not-detected">
-        <span class="setup-role">${esc(role)}</span>
-        <span class="setup-nd">No matching Text Style detected</span>
-      </div>`;
-    }
     return `<div class="setup-row-item">
       <span class="setup-role">${esc(role)}</span>
       <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
@@ -519,6 +515,44 @@ function renderSetupTab() {
     <div class="setup-rows">${rows}</div>
     <div style="margin-top:12px;font-size:10px;color:var(--t3);line-height:1.6">
       Detection matches Text Style names against: H1–H6, Heading 1–6, Body Text, Body, Paragraph.<br>
+      Styles with "-old", "-v2", "-deprecated" in the name are skipped.
+    </div>`;
+}
+
+// ─── Editor tab renderer ──────────────────────────────────────────────────────
+function renderEditorTab() {
+  const editor = data?.editor ?? {};
+  const ROLES  = ['label', 'subtitle', 'cta', 'caption', 'overline', 'small'];
+  const detected = ROLES.filter(r => editor[r]).length;
+
+  const rows = ROLES.filter(role => editor[role]).map(role => {
+    const e = editor[role];
+    return `<div class="setup-row-item">
+      <span class="setup-role">${esc(role)}</span>
+      <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
+      <span class="setup-size">${e.size ? e.size+'px' : '—'}</span>
+      <span class="setup-weight">${e.weight??'—'}</span>
+      <span class="setup-lh">${e['line-height']??'—'}</span>
+      <span class="setup-ls">${e['letter-spacing']??'—'}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="setup-header">
+      <span class="section-label">Editor — ${detected}/6 detected</span>
+      <span class="setup-hint">Matched from local Text Styles</span>
+    </div>
+    <div class="setup-grid-head">
+      <span>Role</span>
+      <span>Font</span>
+      <span style="text-align:right">Size</span>
+      <span style="text-align:right">Weight</span>
+      <span style="text-align:right">Line H.</span>
+      <span style="text-align:right">Letter S.</span>
+    </div>
+    <div class="setup-rows">${rows}</div>
+    <div style="margin-top:12px;font-size:10px;color:var(--t3);line-height:1.6">
+      Detection matches Text Style names against: Label, Subtitle/Sub Title, CTA, Caption, Overline, Small.<br>
       Styles with "-old", "-v2", "-deprecated" in the name are skipped.
     </div>`;
 }
@@ -731,14 +765,16 @@ function buildJSON(){
         fontSize: fontSizeArr.length,
         spacing:  spacingArr.length,
         color:    Object.keys(colorObj).length,
-        typography: Object.keys(data.setup ?? {}).length,
+        typography: Object.keys(data.typography ?? {}).length,
+        editor:     Object.keys(data.editor ?? {}).length,
       },
     },
     font:     fontArr,
     fontSize: fontSizeArr,
     spacing:  spacingArr,
     color:    colorObj,
-    typography: data.setup ?? {},
+    typography: data.typography ?? {},
+    editor:     data.editor ?? {},
   };
 }
 
@@ -803,7 +839,8 @@ window.addEventListener('message',({data:evt})=>{
     document.getElementById('cnt-size').textContent    = data.fontSizes.length;
     document.getElementById('cnt-spacing').textContent = data.spacings.length;
     document.getElementById('cnt-color').textContent   = data.colors.length;
-    document.getElementById('cnt-typography').textContent = Object.keys(data.setup ?? {}).length + '/7';
+    document.getElementById('cnt-typography').textContent = Object.keys(data.typography ?? {}).length + '/7';
+    document.getElementById('cnt-editor').textContent    = Object.keys(data.editor ?? {}).length + '/6';
     document.getElementById('sPages').textContent   = data.totalPages;
     document.getElementById('sNodes').textContent   = data.totalNodes.toLocaleString();
     document.getElementById('sFonts').textContent   = data.fonts.length;

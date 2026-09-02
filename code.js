@@ -1,6 +1,6 @@
 // ─── Design Token Scanner — code.js ──────────────────────────────────────────
 
-figma.showUI(__html__, { width: 520, height: 700, title: 'Design Token Scanner' });
+figma.showUI(__html__, { width: 560, height: 700, title: 'Design Token Scanner' });
 
 // ─── Caches ───────────────────────────────────────────────────────────────────
 const _vc = new Map(); // variable cache: alias.id → { id, name, collection }
@@ -53,11 +53,9 @@ function ser(e, key) {
   return { ...rest, key, pageCount: _pages.size };
 }
 
-// ─── Text Style Setup ─────────────────────────────────────────────────────────
-// Maps semantic roles (h1–h6, body-text) to their typography properties
-// by matching local Text Style names against known patterns.
-
-const SETUP_WEIGHT = {
+// ─── Typography & Editor extraction ──────────────────────────────────────────
+// Shared weight map (Figma style name → CSS numeric weight)
+const TYPO_WEIGHT = {
   'Thin':100,'ExtraLight':200,'Extra Light':200,'Extra-Light':200,
   'Light':300,'Regular':400,'Normal':400,'Italic':400,
   'Medium':500,'Medium Italic':500,
@@ -66,8 +64,52 @@ const SETUP_WEIGHT = {
   'ExtraBold':800,'Extra Bold':800,'Extra-Bold':800,'Black':900,
 };
 
-// Each role lists patterns in priority order; first match wins.
-const SETUP_ROLES = [
+// Extract typography properties from a single Figma TextStyle node
+function extractStyleProps({ fontSize, fontName, lineHeight, letterSpacing }) {
+  const entry = {};
+  if (fontSize != null)    entry.size   = String(Math.round(fontSize));
+  if (fontName?.style)     entry.weight = String(TYPO_WEIGHT[fontName.style] ?? 400);
+  if (fontName?.family) {
+    const f = fontName.family;
+    entry.font = f.includes(' ') ? `'${f}', sans-serif` : `${f}, sans-serif`;
+  }
+  // line-height → unitless ratio
+  if (lineHeight?.unit === 'PERCENT' && lineHeight.value != null) {
+    entry['line-height'] = String(+(lineHeight.value / 100).toFixed(2));
+  } else if (lineHeight?.unit === 'PIXELS' && lineHeight.value && fontSize) {
+    entry['line-height'] = String(+(lineHeight.value / fontSize).toFixed(2));
+  }
+  // letter-spacing in em units — omit if zero
+  if (letterSpacing?.unit) {
+    let em = 0;
+    if (letterSpacing.unit === 'PERCENT')                 em = letterSpacing.value / 100;
+    else if (letterSpacing.unit === 'PIXELS' && fontSize) em = letterSpacing.value / fontSize;
+    if (em !== 0) entry['letter-spacing'] = `${+em.toFixed(4)}em`;
+  }
+  return entry;
+}
+
+// Match an array of role definitions against a list of Figma TextStyles
+function matchRoles(roles, styles) {
+  const result = {};
+  for (const { key, patterns } of roles) {
+    let matched = null;
+    for (const pat of patterns) {
+      matched = styles.find(s => {
+        // Skip deprecated / versioned variants (e.g. "H1-Old", "H1-v2")
+        if (/-(?:old|v\d|backup|deprecated|legacy)\b/i.test(s.name)) return false;
+        const last = s.name.split('/').pop().trim(); // support path-style names like "Type/H1"
+        return pat.test(last) || pat.test(s.name.trim());
+      });
+      if (matched) break;
+    }
+    if (matched) result[key] = extractStyleProps(matched);
+  }
+  return result;
+}
+
+// Heading + body roles → "typography" section
+const TYPOGRAPHY_ROLES = [
   { key: 'h1',        patterns: [/^h1$/i, /^heading[\s-]?1$/i] },
   { key: 'h2',        patterns: [/^h2$/i, /^heading[\s-]?2$/i] },
   { key: 'h3',        patterns: [/^h3$/i, /^heading[\s-]?3$/i] },
@@ -77,62 +119,25 @@ const SETUP_ROLES = [
   { key: 'body-text', patterns: [/^body[\s-]?text$/i, /^body$/i, /^paragraph$/i, /^body[\s-]?copy$/i] },
 ];
 
-async function buildSetup() {
+// UI component roles → "editor" section
+const EDITOR_ROLES = [
+  { key: 'label',    patterns: [/^label$/i, /^labels?$/i, /^tag$/i] },
+  { key: 'subtitle', patterns: [/^sub[\s-]?title$/i, /^subtitle$/i, /^subheading$/i, /^sub[\s-]?heading$/i] },
+  { key: 'cta',      patterns: [/^cta$/i, /^call[\s-]?to[\s-]?action$/i, /^button[\s-]?text$/i] },
+  { key: 'caption',  patterns: [/^caption$/i, /^captions?$/i, /^footnote$/i] },
+  { key: 'overline', patterns: [/^overline$/i, /^over[\s-]?line$/i, /^eyebrow$/i] },
+  { key: 'small',    patterns: [/^small$/i, /^small[\s-]?text$/i, /^small[\s-]?body$/i, /^xs[\s-]?text$/i] },
+];
+
+// Fetch local Text Styles once, build both maps
+async function buildAllTypography() {
   let styles;
-  try { styles = await figma.getLocalTextStylesAsync(); } catch { return {}; }
-  if (!styles?.length) return {};
-
-  const setup = {};
-
-  for (const { key, patterns } of SETUP_ROLES) {
-    let matched = null;
-
-    for (const pat of patterns) {
-      matched = styles.find(s => {
-        // Skip deprecated / versioned variants (e.g. "H1-Old", "H1-v2")
-        if (/-(?:old|v\d|backup|deprecated|legacy)\b/i.test(s.name)) return false;
-        const last = s.name.split('/').pop().trim(); // handle path-style names like "Typography/H1"
-        return pat.test(last) || pat.test(s.name.trim());
-      });
-      if (matched) break;
-    }
-    if (!matched) continue;
-
-    const { fontSize, fontName, lineHeight, letterSpacing } = matched;
-    const entry = {};
-
-    // size (rounded, stored as string)
-    if (fontSize != null)      entry.size   = String(Math.round(fontSize));
-
-    // weight (numeric CSS value, stored as string)
-    if (fontName?.style)       entry.weight = String(SETUP_WEIGHT[fontName.style] ?? 400);
-
-    // font family with generic CSS fallback
-    if (fontName?.family) {
-      const f = fontName.family;
-      entry.font = f.includes(' ') ? `'${f}', sans-serif` : `${f}, sans-serif`;
-    }
-
-    // line-height as a unitless ratio
-    if (lineHeight?.unit === 'PERCENT' && lineHeight.value != null) {
-      entry['line-height'] = String(+(lineHeight.value / 100).toFixed(2));
-    } else if (lineHeight?.unit === 'PIXELS' && lineHeight.value && fontSize) {
-      entry['line-height'] = String(+(lineHeight.value / fontSize).toFixed(2));
-    }
-    // 'AUTO' line-height → omit
-
-    // letter-spacing in em units — omit entirely when value is 0
-    if (letterSpacing != null && letterSpacing.unit) {
-      let em = 0;
-      if (letterSpacing.unit === 'PERCENT')                 em = letterSpacing.value / 100;
-      else if (letterSpacing.unit === 'PIXELS' && fontSize) em = letterSpacing.value / fontSize;
-      if (em !== 0) entry['letter-spacing'] = `${+em.toFixed(4)}em`;
-    }
-
-    setup[key] = entry;
-  }
-
-  return setup;
+  try { styles = await figma.getLocalTextStylesAsync(); } catch { styles = []; }
+  if (!styles.length) return { typography: {}, editor: {} };
+  return {
+    typography: matchRoles(TYPOGRAPHY_ROLES, styles),
+    editor:     matchRoles(EDITOR_ROLES,     styles),
+  };
 }
 
 // ─── Scan ─────────────────────────────────────────────────────────────────────
@@ -276,8 +281,8 @@ async function scan(pageIds = null) {
     try { await figma.setCurrentPageAsync(startPage); } catch (_) {}
   }
 
-  // Build typography setup from local Text Styles (file-level, not page-specific)
-  const setup = await buildSetup();
+  // Build typography maps from local Text Styles (file-level, single API call)
+  const { typography, editor } = await buildAllTypography();
 
   figma.ui.postMessage({
     type: 'result',
@@ -286,7 +291,8 @@ async function scan(pageIds = null) {
       fontSizes: [...FSIZES.entries()].map(([k,e]) => ser(e,k)).sort((a,b) => a.value - b.value),
       spacings:  [...SPACES.entries()].map(([k,e]) => { const {_pages,types,...rest}=e; return {...rest,key:k,types:[...types],pageCount:_pages.size}; }).sort((a,b) => a.value - b.value),
       colors:    [...COLORS.entries()].map(([k,e]) => ser(e,k)).sort((a,b) => b.count - a.count),
-      setup,       // internal key; ui.html exports this as "typography"
+      typography,
+      editor,
       totalNodes, totalPages: pages.length,
     },
   });
