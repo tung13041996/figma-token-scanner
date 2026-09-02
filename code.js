@@ -116,18 +116,28 @@ function styleSlug(s) {
     .replace(/^-|-$/g, '');
 }
 
-// Classify a Figma group name as 'editor' or 'typography'.
-// Groups with button/label/UI component keywords go to editor;
-// everything else (including ungrouped styles) goes to typography.
-function classifyGroup(groupName) {
-  if (!groupName) return 'typography';
-  const g = groupName.toLowerCase();
-  if (/label|button|btn|badge|chip|tag|input|form|ui|component|cta|action|caption|toast|tooltip/.test(g))
-    return 'editor';
-  return 'typography';
+// Classify a style into 'typography' or 'editor' based on the style name
+// (last segment after "/" in the Figma style path).
+//
+// Typography: h1–h6 (and naming variants), big heading, body text (+ numbered variants)
+// Editor: everything else (label, subtitle, cta, caption, button, stats, etc.)
+function isTypographyStyle(lastSeg) {
+  const n = lastSeg.toLowerCase();
+
+  // h1 through h6 — standalone or embedded ("Heading - H1", "H1 Bold")
+  if (/\bh[1-6]\b/.test(n)) return true;
+
+  // Big Heading
+  if (/big[\s-]?heading/.test(n)) return true;
+
+  // Body Text, Body Text 1, Body Text 2, Body-Text-3, …
+  if (/^body[\s-]?text([\s-]\d+)?$/.test(n)) return true;
+
+  return false;
 }
 
 // Read ALL local Text Styles once and split into typography + editor buckets.
+// Classification is based on the style name itself, not the Figma group.
 // Each entry includes _group (the Figma group name) for UI display — this
 // internal field is stripped before writing to the JSON export.
 async function buildAllTypography() {
@@ -146,7 +156,7 @@ async function buildAllTypography() {
     const groupName = parts.length > 1 ? parts[0].trim() : '';
     const lastSeg   = parts[parts.length - 1].trim();
 
-    const target = classifyGroup(groupName) === 'editor' ? editor : typography;
+    const target = isTypographyStyle(lastSeg) ? typography : editor;
 
     // Build unique key from last segment; append suffix on collision
     let key = styleSlug(lastSeg), n = 2;
