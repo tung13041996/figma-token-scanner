@@ -53,8 +53,27 @@ function ser(e, key) {
   return { ...rest, key, pageCount: _pages.size };
 }
 
+// Collect every node in the subtree via an explicit stack traversal.
+// This guarantees all nodes are visited, including those with visible:false
+// (hidden accordion panels, collapsed frames, component states, etc.).
+// page.findAll() should behave identically, but this is explicit and safe.
+function collectAllNodes(root) {
+  const result = [];
+  const stack = 'children' in root ? [...root.children] : [];
+  while (stack.length > 0) {
+    const node = stack.pop();
+    result.push(node);
+    if ('children' in node) stack.push(...node.children);
+  }
+  return result;
+}
+
 // ─── Typography & Editor extraction ──────────────────────────────────────────
 // Shared weight map (Figma style name → CSS numeric weight)
+// ─── Typography & Editor extraction ──────────────────────────────────────────
+// Reads ALL local Text Styles and classifies them into typography / editor
+// buckets based on their Figma group name — no hardcoded role lists.
+
 const TYPO_WEIGHT = {
   'Thin':100,'ExtraLight':200,'Extra Light':200,'Extra-Light':200,
   'Light':300,'Regular':400,'Normal':400,'Italic':400,
@@ -64,7 +83,7 @@ const TYPO_WEIGHT = {
   'ExtraBold':800,'Extra Bold':800,'Extra-Bold':800,'Black':900,
 };
 
-// Extract typography properties from a single Figma TextStyle node
+// Extract typography properties from a Figma TextStyle node
 function extractStyleProps({ fontSize, fontName, lineHeight, letterSpacing }) {
   const entry = {};
   if (fontSize != null)    entry.size   = String(Math.round(fontSize));
@@ -73,13 +92,11 @@ function extractStyleProps({ fontSize, fontName, lineHeight, letterSpacing }) {
     const f = fontName.family;
     entry.font = f.includes(' ') ? `'${f}', sans-serif` : `${f}, sans-serif`;
   }
-  // line-height → unitless ratio
   if (lineHeight?.unit === 'PERCENT' && lineHeight.value != null) {
     entry['line-height'] = String(+(lineHeight.value / 100).toFixed(2));
   } else if (lineHeight?.unit === 'PIXELS' && lineHeight.value && fontSize) {
     entry['line-height'] = String(+(lineHeight.value / fontSize).toFixed(2));
   }
-  // letter-spacing in em units — omit if zero
   if (letterSpacing?.unit) {
     let em = 0;
     if (letterSpacing.unit === 'PERCENT')                 em = letterSpacing.value / 100;
@@ -89,55 +106,56 @@ function extractStyleProps({ fontSize, fontName, lineHeight, letterSpacing }) {
   return entry;
 }
 
-// Match an array of role definitions against a list of Figma TextStyles
-function matchRoles(roles, styles) {
-  const result = {};
-  for (const { key, patterns } of roles) {
-    let matched = null;
-    for (const pat of patterns) {
-      matched = styles.find(s => {
-        // Skip deprecated / versioned variants (e.g. "H1-Old", "H1-v2")
-        if (/-(?:old|v\d|backup|deprecated|legacy)\b/i.test(s.name)) return false;
-        const last = s.name.split('/').pop().trim(); // support path-style names like "Type/H1"
-        return pat.test(last) || pat.test(s.name.trim());
-      });
-      if (matched) break;
-    }
-    if (matched) result[key] = extractStyleProps(matched);
-  }
-  return result;
+// Convert a style name segment to a clean slug for use as a JSON key
+function styleSlug(s) {
+  return s.toLowerCase()
+    .replace(/\s*[-/]\s*/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }
 
-// Heading + body roles → "typography" section
-const TYPOGRAPHY_ROLES = [
-  { key: 'h1',        patterns: [/^h1$/i, /^heading[\s-]?1$/i] },
-  { key: 'h2',        patterns: [/^h2$/i, /^heading[\s-]?2$/i] },
-  { key: 'h3',        patterns: [/^h3$/i, /^heading[\s-]?3$/i] },
-  { key: 'h4',        patterns: [/^h4$/i, /^heading[\s-]?4$/i] },
-  { key: 'h5',        patterns: [/^h5$/i, /^heading[\s-]?5$/i] },
-  { key: 'h6',        patterns: [/^h6$/i, /^heading[\s-]?6$/i] },
-  { key: 'body-text', patterns: [/^body[\s-]?text$/i, /^body$/i, /^paragraph$/i, /^body[\s-]?copy$/i] },
-];
+// Classify a Figma group name as 'editor' or 'typography'.
+// Groups with button/label/UI component keywords go to editor;
+// everything else (including ungrouped styles) goes to typography.
+function classifyGroup(groupName) {
+  if (!groupName) return 'typography';
+  const g = groupName.toLowerCase();
+  if (/label|button|btn|badge|chip|tag|input|form|ui|component|cta|action|caption|toast|tooltip/.test(g))
+    return 'editor';
+  return 'typography';
+}
 
-// UI component roles → "editor" section
-const EDITOR_ROLES = [
-  { key: 'label',    patterns: [/^label$/i, /^labels?$/i, /^tag$/i] },
-  { key: 'subtitle', patterns: [/^sub[\s-]?title$/i, /^subtitle$/i, /^subheading$/i, /^sub[\s-]?heading$/i] },
-  { key: 'cta',      patterns: [/^cta$/i, /^call[\s-]?to[\s-]?action$/i, /^button[\s-]?text$/i] },
-  { key: 'caption',  patterns: [/^caption$/i, /^captions?$/i, /^footnote$/i] },
-  { key: 'overline', patterns: [/^overline$/i, /^over[\s-]?line$/i, /^eyebrow$/i] },
-  { key: 'small',    patterns: [/^small$/i, /^small[\s-]?text$/i, /^small[\s-]?body$/i, /^xs[\s-]?text$/i] },
-];
-
-// Fetch local Text Styles once, build both maps
+// Read ALL local Text Styles once and split into typography + editor buckets.
+// Each entry includes _group (the Figma group name) for UI display — this
+// internal field is stripped before writing to the JSON export.
 async function buildAllTypography() {
   let styles;
   try { styles = await figma.getLocalTextStylesAsync(); } catch { styles = []; }
   if (!styles.length) return { typography: {}, editor: {} };
-  return {
-    typography: matchRoles(TYPOGRAPHY_ROLES, styles),
-    editor:     matchRoles(EDITOR_ROLES,     styles),
-  };
+
+  const typography = {};
+  const editor     = {};
+
+  for (const style of styles) {
+    // Skip deprecated / old / backup variants
+    if (/-(?:old|v\d|backup|deprecated|legacy)\b/i.test(style.name)) continue;
+
+    const parts     = style.name.split('/');
+    const groupName = parts.length > 1 ? parts[0].trim() : '';
+    const lastSeg   = parts[parts.length - 1].trim();
+
+    const target = classifyGroup(groupName) === 'editor' ? editor : typography;
+
+    // Build unique key from last segment; append suffix on collision
+    let key = styleSlug(lastSeg), n = 2;
+    while (Object.prototype.hasOwnProperty.call(target, key)) key = `${styleSlug(lastSeg)}-${n++}`;
+
+    target[key] = { ...extractStyleProps(style), _group: groupName || 'Other' };
+  }
+
+  return { typography, editor };
 }
 
 // ─── Scan ─────────────────────────────────────────────────────────────────────
@@ -174,8 +192,10 @@ async function scan(pageIds = null) {
     }
     await new Promise(r => setTimeout(r, 0));
 
+    // Collect ALL nodes — explicit traversal ensures hidden/collapsed nodes
+    // (accordion panels, component states, hidden frames) are included
     let nodes;
-    try { nodes = page.findAll(); } catch { continue; }
+    try { nodes = collectAllNodes(page); } catch { continue; }
     totalNodes += nodes.length;
 
     for (let i = 0; i < nodes.length; i++) {

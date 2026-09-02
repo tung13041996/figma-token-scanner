@@ -167,6 +167,10 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
 .setup-size,.setup-weight,.setup-lh,.setup-ls{font-variant-numeric:tabular-nums;color:var(--t2);text-align:right;font-size:11px}
 .setup-nd{grid-column:2/-1;color:var(--t3);font-style:italic;font-size:10px}
 .setup-rows{display:flex;flex-direction:column}
+.style-group-label{
+  font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--t3);padding:8px 8px 3px;margin-top:4px;
+}
 
 #toast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:500;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:100}
 #toast.show{opacity:1}
@@ -406,81 +410,69 @@ function render(){
   document.querySelectorAll('.fm-btn').forEach(btn=>btn.addEventListener('click',()=>{filterMode=btn.dataset.mode;render();}));
 }
 
-// ─── Typography tab renderer ──────────────────────────────────────────────────
-function renderSetupTab() {
-  const setup = data?.typography ?? {};
-  const ROLES = ['h1','h2','h3','h4','h5','h6','body-text'];
-  const detected = ROLES.filter(r => setup[r]).length;
+// ─── Shared renderer for Typography and Editor tabs ───────────────────────────
+// Groups styles by their Figma group name (_group field) and renders them
+// in sections. Keys are the slugified style names from Figma.
+function renderTypographyTab(dataObj, tabLabel) {
+  const entries = Object.entries(dataObj ?? {});
+  if (!entries.length) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty"><div class="empty-icon">📝</div>No Text Styles found for this tab</div>`;
+    return;
+  }
 
-  const rows = ROLES.filter(role => setup[role]).map(role => {
-    const e = setup[role];
-    return `<div class="setup-row-item">
-      <span class="setup-role">${esc(role)}</span>
-      <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
-      <span class="setup-size">${e.size ? e.size+'px' : '—'}</span>
-      <span class="setup-weight">${e.weight??'—'}</span>
-      <span class="setup-lh">${e['line-height']??'—'}</span>
-      <span class="setup-ls">${e['letter-spacing']??'—'}</span>
-    </div>`;
-  }).join('');
+  // Group entries by their _group value, preserving insertion order
+  const groups = {};
+  for (const [key, val] of entries) {
+    const g = val._group ?? 'Other';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push([key, val]);
+  }
 
-  document.getElementById('content').innerHTML = `
-    <div class="setup-header">
-      <span class="section-label">Typography — ${detected}/7 detected</span>
-      <span class="setup-hint">Matched from local Text Styles</span>
-    </div>
+  const GRID_HEAD = `
     <div class="setup-grid-head">
-      <span>Role</span>
+      <span>Style</span>
       <span>Font</span>
       <span style="text-align:right">Size</span>
       <span style="text-align:right">Weight</span>
       <span style="text-align:right">Line H.</span>
       <span style="text-align:right">Letter S.</span>
-    </div>
-    <div class="setup-rows">${rows}</div>
-    <div style="margin-top:12px;font-size:10px;color:var(--t3);line-height:1.6">
-      Detection matches Text Style names against: H1–H6, Heading 1–6, Body Text, Body, Paragraph.<br>
-      Styles with "-old", "-v2", "-deprecated" in the name are skipped.
     </div>`;
-}
 
-// ─── Editor tab renderer ──────────────────────────────────────────────────────
-function renderEditorTab() {
-  const editor = data?.editor ?? {};
-  const ROLES  = ['label', 'subtitle', 'cta', 'caption', 'overline', 'small'];
-  const detected = ROLES.filter(r => editor[r]).length;
-
-  const rows = ROLES.filter(role => editor[role]).map(role => {
-    const e = editor[role];
-    return `<div class="setup-row-item">
-      <span class="setup-role">${esc(role)}</span>
-      <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
-      <span class="setup-size">${e.size ? e.size+'px' : '—'}</span>
-      <span class="setup-weight">${e.weight??'—'}</span>
-      <span class="setup-lh">${e['line-height']??'—'}</span>
-      <span class="setup-ls">${e['letter-spacing']??'—'}</span>
-    </div>`;
-  }).join('');
-
-  document.getElementById('content').innerHTML = `
+  let html = `
     <div class="setup-header">
-      <span class="section-label">Editor — ${detected}/6 detected</span>
-      <span class="setup-hint">Matched from local Text Styles</span>
+      <span class="section-label">${esc(tabLabel)} — ${entries.length} style${entries.length!==1?'s':''}</span>
+      <span class="setup-hint">From local Text Styles</span>
     </div>
-    <div class="setup-grid-head">
-      <span>Role</span>
-      <span>Font</span>
-      <span style="text-align:right">Size</span>
-      <span style="text-align:right">Weight</span>
-      <span style="text-align:right">Line H.</span>
-      <span style="text-align:right">Letter S.</span>
-    </div>
-    <div class="setup-rows">${rows}</div>
-    <div style="margin-top:12px;font-size:10px;color:var(--t3);line-height:1.6">
-      Detection matches Text Style names against: Label, Subtitle/Sub Title, CTA, Caption, Overline, Small.<br>
-      Styles with "-old", "-v2", "-deprecated" in the name are skipped.
+    ${GRID_HEAD}
+    <div class="setup-rows">`;
+
+  for (const [groupName, items] of Object.entries(groups)) {
+    // Show group header when there are multiple groups
+    if (Object.keys(groups).length > 1) {
+      html += `<div class="style-group-label">${esc(groupName)}</div>`;
+    }
+    for (const [key, e] of items) {
+      html += `<div class="setup-row-item">
+        <span class="setup-role" title="${esc(key)}">${esc(key)}</span>
+        <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
+        <span class="setup-size">${e.size ? e.size+'px' : '—'}</span>
+        <span class="setup-weight">${e.weight??'—'}</span>
+        <span class="setup-lh">${e['line-height']??'—'}</span>
+        <span class="setup-ls">${e['letter-spacing']??'—'}</span>
+      </div>`;
+    }
+  }
+
+  html += `</div>
+    <div style="margin-top:10px;font-size:10px;color:var(--t3);line-height:1.6">
+      Grouped by Figma style group name. Styles with -old / -v2 / -deprecated are skipped.
     </div>`;
+  document.getElementById('content').innerHTML = html;
 }
+
+function renderSetupTab()  { renderTypographyTab(data?.typography, 'Typography'); }
+function renderEditorTab() { renderTypographyTab(data?.editor,     'Editor'); }
 
 function renderItem(item, idx){
   const defined = isDefined(item);
@@ -599,6 +591,16 @@ document.getElementById('modalCreate').addEventListener('click',()=>{
   closeModal();
 });
 
+// Strip internal UI-only fields (_group) before writing to JSON
+function stripMeta(obj) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => {
+      const { _group, ...rest } = v;
+      return [k, rest];
+    })
+  );
+}
+
 // ─── Export JSON ──────────────────────────────────────────────────────────────
 function buildJSON(){
   if(!data) return {};
@@ -698,8 +700,8 @@ function buildJSON(){
     fontSize: fontSizeArr,
     spacing:  spacingArr,
     color:    colorObj,
-    typography: data.typography ?? {},
-    editor:     data.editor ?? {},
+    typography: stripMeta(data.typography ?? {}),
+    editor:     stripMeta(data.editor ?? {}),
   };
 }
 
@@ -756,8 +758,8 @@ window.addEventListener('message',({data:evt})=>{
     document.getElementById('cnt-size').textContent    = data.fontSizes.length;
     document.getElementById('cnt-spacing').textContent = data.spacings.length;
     document.getElementById('cnt-color').textContent   = data.colors.length;
-    document.getElementById('cnt-typography').textContent = Object.keys(data.typography ?? {}).length + '/7';
-    document.getElementById('cnt-editor').textContent    = Object.keys(data.editor ?? {}).length + '/6';
+    document.getElementById('cnt-typography').textContent = Object.keys(data.typography ?? {}).length;
+    document.getElementById('cnt-editor').textContent    = Object.keys(data.editor ?? {}).length;
     document.getElementById('sNodes').textContent   = data.totalNodes.toLocaleString();
     document.getElementById('sFonts').textContent   = data.fonts.length;
     document.getElementById('sSizes').textContent   = data.fontSizes.length;
