@@ -11,16 +11,17 @@ A Figma plugin for auditing design files and extracting raw design token values 
 - Detects whether each value is backed by a Figma Variable, a Text Style, or is completely untracked
 - Suggested variable names for every untracked token, following a consistent naming convention
 - One-click variable creation directly from the plugin, or open a custom name dialog to edit before saving
-- Click any token to select all matching nodes on the canvas
+- Click any token to select all matching nodes on the canvas — including nodes hidden inside collapsed frames or accordion components
 - Hide irrelevant tokens (e.g. rounding artifacts) — hidden tokens are excluded from the JSON export
 
 **Typography detection**
-- Reads local Text Styles and maps them to semantic roles automatically
-- **Typography tab**: h1 → h6, body-text
-- **Editor tab**: label, subtitle, cta, caption, overline, small
-- Each role shows: font family, size, weight, line-height (unitless ratio), letter-spacing (in em)
-- Letter-spacing is omitted from output when the value is 0
-- Undetected roles are hidden — only matched styles are shown
+- Reads all local Text Styles and automatically splits them into two tabs
+- **Typography tab**: styles whose name matches h1–h6, Big Heading, or Body Text (with optional number suffix)
+- **Editor tab**: all remaining styles (label, subtitle, CTA, caption, button, overline, etc.)
+- Styles are grouped by their Figma style group name when a group is present
+- Each style shows: font family, size, weight, line-height (unitless ratio), letter-spacing (in em)
+- Letter-spacing is omitted from the output when the value is 0
+- Deprecated styles (names containing `-old`, `-v2`, `-deprecated`, `-legacy`) are skipped automatically
 
 **Export**
 - One-click JSON export structured for build pipelines or style-dictionary workflows
@@ -68,8 +69,8 @@ The plugin opens and immediately scans the current page.
 | 📏 **Sizes** | Font size from all TEXT nodes | A font-size Variable **or** a Text Style is applied |
 | 📐 **Spacing** | `gap` and `padding` from auto-layout frames | A spacing Variable is bound |
 | 🎨 **Color** | Solid fills and strokes from all nodes | A Color Variable **or** a Color Style is applied |
-| 📝 **Typography** | h1–h6 + body-text mapped from local Text Styles | — (display only) |
-| 📄 **Editor** | label, subtitle, cta, caption, overline, small from local Text Styles | — (display only) |
+| 📝 **Typography** | h1–h6, Big Heading, Body Text styles from local Text Styles | — (display only) |
+| 📄 **Editor** | All other Text Styles (label, subtitle, CTA, caption, button, etc.) | — (display only) |
 
 Each token row shows:
 - A preview (color swatch, font preview, or numeric value)
@@ -97,13 +98,29 @@ Each token row shows:
 | **✎** | Opens a dialog to customise the name and collection before creating |
 | **×** | Hides the token from the list and excludes it from the JSON export |
 
-> **Font tab**: Variables cannot be created for font family/weight — use Figma Text Styles instead. The ✎ button is not shown for font tokens.
+> **Font tab**: Variables cannot be created for font family/weight — use Figma Text Styles instead.
+
+---
+
+### Typography and Editor tabs
+
+Both tabs read all local Text Styles from the current file and classify each style by name:
+
+**Typography** — style name matches any of:
+- `H1` through `H6` (standalone or embedded, e.g. `Heading - H1`, `H2 Bold`)
+- `Big Heading` (any capitalisation or with dashes)
+- `Body Text`, `Body Text 1`, `Body Text 2`, … (with optional number suffix)
+
+**Editor** — everything else:
+- Labels, subtitles, CTAs, captions, overlines, buttons, stats, etc.
+
+Styles are shown grouped by their Figma style group name (the part before `/` in the style name). Keys in the exported JSON are the slugified last segment of each style name.
 
 ---
 
 ### Export JSON
 
-Click **Export JSON** to download `design-tokens-YYYY-MM-DD.json`.
+Click **Export JSON** to download `scan-design-token.json`.
 
 #### Format
 
@@ -111,17 +128,17 @@ Click **Export JSON** to download `design-tokens-YYYY-MM-DD.json`.
 {
   "_meta": {
     "tool": "Design Token Scanner",
-    "date": "2026-08-30",
+    "date": "2026-09-02",
     "pages": 1,
     "nodes": 2372,
-    "hidden": 2,
+    "hidden": 0,
     "summary": {
       "font": 3,
       "fontSize": 9,
       "spacing": 6,
       "color": 14,
-      "typography": 7,
-      "editor": 3
+      "typography": 10,
+      "editor": 4
     }
   },
   "font": [
@@ -138,14 +155,16 @@ Click **Export JSON** to download `design-tokens-YYYY-MM-DD.json`.
     "000000-40":   "rgba(0,0,0,0.4)"
   },
   "typography": {
-    "h1": { "size": "52", "weight": "700", "font": "'Inter', sans-serif", "line-height": "1.1" },
-    "h2": { "size": "48", "weight": "700", "font": "'Inter', sans-serif", "line-height": "1.05" },
-    "body-text": { "size": "16", "weight": "400", "font": "'Inter', sans-serif", "line-height": "1.5" }
+    "big-heading":  { "size": "96", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2", "letter-spacing": "0.05em" },
+    "h1":           { "size": "56", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2", "letter-spacing": "0.05em" },
+    "h2":           { "size": "48", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2" },
+    "body-text-1":  { "size": "14", "weight": "500", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.4" },
+    "body-text-2":  { "size": "16", "weight": "500", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.3" }
   },
   "editor": {
-    "label":    { "size": "24", "weight": "600", "font": "'Crimson Text', sans-serif", "line-height": "1.4" },
-    "subtitle": { "size": "14", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4", "letter-spacing": "0.1429em" },
-    "cta":      { "size": "15", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" }
+    "sub-title": { "size": "14", "weight": "700", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.4", "letter-spacing": "0.2143em" },
+    "label":     { "size": "12", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" },
+    "cta":       { "size": "15", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" }
   }
 }
 ```
@@ -160,8 +179,8 @@ Click **Export JSON** to download `design-tokens-YYYY-MM-DD.json`.
 | `spacing` | Sorted array of unique px values from auto-layout gap and padding |
 | `color` key | Variable name → slugified, Color Style name → slugified, or hex fallback |
 | `color` value | Lowercase hex for 100% opacity; `rgba()` for partial opacity |
-| `typography` / `editor` | Only detected roles are included — unmatched roles are omitted |
-| `line-height` | Unitless ratio (e.g. `"1.1"` from 110%) |
+| `typography` / `editor` key | Slugified last segment of the Figma style name (e.g. `Heading - H1` → `heading-h1`) |
+| `line-height` | Unitless ratio (e.g. `"1.2"` from 120%) |
 | `letter-spacing` | Em value (e.g. `"0.05em"`). Key is omitted when the value is 0 |
 
 #### Font weight reference
@@ -180,30 +199,6 @@ Click **Export JSON** to download `design-tokens-YYYY-MM-DD.json`.
 
 ---
 
-### Typography & Editor detection
-
-Both tabs read `figma.getLocalTextStylesAsync()` and match style names against known patterns. Styles containing `-old`, `-v2`, `-deprecated`, or `-legacy` in the name are skipped automatically.
-
-**Typography roles:**
-
-| Role | Matched style names |
-|---|---|
-| h1–h6 | `H1`–`H6`, `Heading 1`–`Heading 6`, path-style names like `Type/H1` |
-| body-text | `Body text`, `Body`, `Paragraph`, `Body copy` |
-
-**Editor roles:**
-
-| Role | Matched style names |
-|---|---|
-| label | `Label`, `Labels`, `Tag` |
-| subtitle | `Subtitle`, `Sub Title`, `Subheading` |
-| cta | `CTA`, `Call to action`, `Button text` |
-| caption | `Caption`, `Footnote` |
-| overline | `Overline`, `Over Line`, `Eyebrow` |
-| small | `Small`, `Small text`, `Small body` |
-
----
-
 ## File structure
 
 ```
@@ -219,8 +214,10 @@ figma-token-scanner/
 ## Known limitations
 
 - **Canvas highlight** selects nodes on the current page only.
-- **Decimal spacing values** (e.g. `17.376px`) are real values returned by Figma from auto-layout calculations. Use × to hide noise before exporting.
-- **Variables API** requires Figma Professional or Organization plan. On free plans, raw values are still scanned — variable bindings just won't be read.
+- **Hidden nodes** inside collapsed frames and accordion components are included in the scan via explicit tree traversal.
+- **Component variants** — if an accordion's open/closed states live in a main component on a separate library page, only the instance visible on the current page is scanned.
+- **Decimal spacing values** (e.g. `17.376px`) are real Figma auto-layout values. Use × to hide noise before exporting.
+- **Variables API** requires Figma Professional or Organization plan. Raw values are still scanned on free plans — variable bindings just won't be read.
 - **Shared libraries** from external files are not scanned. Only local styles and variables in the current file are detected.
 
 ---
