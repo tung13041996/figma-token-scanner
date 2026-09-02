@@ -53,6 +53,88 @@ function ser(e, key) {
   return { ...rest, key, pageCount: _pages.size };
 }
 
+// ─── Text Style Setup ─────────────────────────────────────────────────────────
+// Maps semantic roles (h1–h6, body-text) to their typography properties
+// by matching local Text Style names against known patterns.
+
+const SETUP_WEIGHT = {
+  'Thin':100,'ExtraLight':200,'Extra Light':200,'Extra-Light':200,
+  'Light':300,'Regular':400,'Normal':400,'Italic':400,
+  'Medium':500,'Medium Italic':500,
+  'SemiBold':600,'Semi Bold':600,'Semi-Bold':600,
+  'Bold':700,'Bold Italic':700,
+  'ExtraBold':800,'Extra Bold':800,'Extra-Bold':800,'Black':900,
+};
+
+// Each role lists patterns in priority order; first match wins.
+const SETUP_ROLES = [
+  { key: 'h1',        patterns: [/^h1$/i, /^heading[\s-]?1$/i] },
+  { key: 'h2',        patterns: [/^h2$/i, /^heading[\s-]?2$/i] },
+  { key: 'h3',        patterns: [/^h3$/i, /^heading[\s-]?3$/i] },
+  { key: 'h4',        patterns: [/^h4$/i, /^heading[\s-]?4$/i] },
+  { key: 'h5',        patterns: [/^h5$/i, /^heading[\s-]?5$/i] },
+  { key: 'h6',        patterns: [/^h6$/i, /^heading[\s-]?6$/i] },
+  { key: 'body-text', patterns: [/^body[\s-]?text$/i, /^body$/i, /^paragraph$/i, /^body[\s-]?copy$/i] },
+];
+
+async function buildSetup() {
+  let styles;
+  try { styles = await figma.getLocalTextStylesAsync(); } catch { return {}; }
+  if (!styles?.length) return {};
+
+  const setup = {};
+
+  for (const { key, patterns } of SETUP_ROLES) {
+    let matched = null;
+
+    for (const pat of patterns) {
+      matched = styles.find(s => {
+        // Skip deprecated / versioned variants (e.g. "H1-Old", "H1-v2")
+        if (/-(?:old|v\d|backup|deprecated|legacy)\b/i.test(s.name)) return false;
+        const last = s.name.split('/').pop().trim(); // handle path-style names like "Typography/H1"
+        return pat.test(last) || pat.test(s.name.trim());
+      });
+      if (matched) break;
+    }
+    if (!matched) continue;
+
+    const { fontSize, fontName, lineHeight, letterSpacing } = matched;
+    const entry = {};
+
+    // size (rounded, stored as string)
+    if (fontSize != null)      entry.size   = String(Math.round(fontSize));
+
+    // weight (numeric CSS value, stored as string)
+    if (fontName?.style)       entry.weight = String(SETUP_WEIGHT[fontName.style] ?? 400);
+
+    // font family with generic CSS fallback
+    if (fontName?.family) {
+      const f = fontName.family;
+      entry.font = f.includes(' ') ? `'${f}', sans-serif` : `${f}, sans-serif`;
+    }
+
+    // line-height as a unitless ratio
+    if (lineHeight?.unit === 'PERCENT' && lineHeight.value != null) {
+      entry['line-height'] = String(+(lineHeight.value / 100).toFixed(2));
+    } else if (lineHeight?.unit === 'PIXELS' && lineHeight.value && fontSize) {
+      entry['line-height'] = String(+(lineHeight.value / fontSize).toFixed(2));
+    }
+    // 'AUTO' line-height → omit
+
+    // letter-spacing in em units — omit entirely when value is 0
+    if (letterSpacing != null && letterSpacing.unit) {
+      let em = 0;
+      if (letterSpacing.unit === 'PERCENT')                 em = letterSpacing.value / 100;
+      else if (letterSpacing.unit === 'PIXELS' && fontSize) em = letterSpacing.value / fontSize;
+      if (em !== 0) entry['letter-spacing'] = `${+em.toFixed(4)}em`;
+    }
+
+    setup[key] = entry;
+  }
+
+  return setup;
+}
+
 // ─── Scan ─────────────────────────────────────────────────────────────────────
 // pageIds: string[] | null
 //   null  → scan all pages in the file
@@ -194,6 +276,9 @@ async function scan(pageIds = null) {
     try { await figma.setCurrentPageAsync(startPage); } catch (_) {}
   }
 
+  // Build typography setup from local Text Styles (file-level, not page-specific)
+  const setup = await buildSetup();
+
   figma.ui.postMessage({
     type: 'result',
     data: {
@@ -201,6 +286,7 @@ async function scan(pageIds = null) {
       fontSizes: [...FSIZES.entries()].map(([k,e]) => ser(e,k)).sort((a,b) => a.value - b.value),
       spacings:  [...SPACES.entries()].map(([k,e]) => { const {_pages,types,...rest}=e; return {...rest,key:k,types:[...types],pageCount:_pages.size}; }).sort((a,b) => a.value - b.value),
       colors:    [...COLORS.entries()].map(([k,e]) => ser(e,k)).sort((a,b) => b.count - a.count),
+      setup,       // internal key; ui.html exports this as "typography"
       totalNodes, totalPages: pages.length,
     },
   });

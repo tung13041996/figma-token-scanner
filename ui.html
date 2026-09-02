@@ -162,6 +162,31 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
 .btn-modal-create{background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .12s}
 .btn-modal-create:hover{background:#0d8de3}
 
+/* ─── Typography tab ─────────────────────────────────────────────────────────── */
+.setup-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.setup-hint{font-size:10px;color:var(--t3)}
+.setup-grid-head,.setup-row-item{
+  display:grid;
+  grid-template-columns:80px 1fr 48px 52px 52px 72px;
+  gap:6px;align-items:center;padding:5px 8px;font-size:11px;
+}
+.setup-grid-head{
+  background:var(--bg2);border-radius:var(--r);
+  font-size:10px;font-weight:600;color:var(--t3);margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.3px;
+}
+.setup-row-item{
+  border:1px solid var(--bd);border-radius:var(--r);
+  margin-bottom:4px;transition:border-color .12s;
+}
+.setup-row-item:hover{border-color:#ccc}
+.setup-row-item.not-detected{opacity:.5}
+.setup-role{font-weight:600;color:var(--t1);font-size:11px}
+.setup-font{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--t2);font-size:10px;font-family:'SF Mono','Fira Code',monospace}
+.setup-size,.setup-weight,.setup-lh,.setup-ls{font-variant-numeric:tabular-nums;color:var(--t2);text-align:right;font-size:11px}
+.setup-nd{grid-column:2/-1;color:var(--t3);font-style:italic;font-size:10px}
+.setup-rows{display:flex;flex-direction:column}
+
 #toast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:500;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:100}
 #toast.show{opacity:1}
 </style>
@@ -225,6 +250,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
     <button class="tab-btn" data-tab="size">📏 Sizes <span class="tab-cnt" id="cnt-size">—</span></button>
     <button class="tab-btn" data-tab="spacing">📐 Spacing <span class="tab-cnt" id="cnt-spacing">—</span></button>
     <button class="tab-btn" data-tab="color">🎨 Color <span class="tab-cnt" id="cnt-color">—</span></button>
+    <button class="tab-btn" data-tab="typography">📝 Typography <span class="tab-cnt" id="cnt-typography">—</span></button>
   </div>
 </div>
 
@@ -396,6 +422,8 @@ function getItems(){
 }
 
 function render(){
+  if (tab === 'typography') { renderSetupTab(); return; }
+
   const all     = getItems().filter(i=>!removedKeys.has(i.key));
   const hidden  = getItems().filter(i=>removedKeys.has(i.key));
   const bound   = all.filter(i=>isDefined(i));
@@ -449,6 +477,50 @@ function render(){
 
   document.getElementById('filterInput').addEventListener('input',e=>{filterText=e.target.value.toLowerCase();render();});
   document.querySelectorAll('.fm-btn').forEach(btn=>btn.addEventListener('click',()=>{filterMode=btn.dataset.mode;render();}));
+}
+
+// ─── Typography tab renderer ──────────────────────────────────────────────────
+function renderSetupTab() {
+  const setup = data?.setup ?? {};
+  const ROLES = ['h1','h2','h3','h4','h5','h6','body-text'];
+  const detected = ROLES.filter(r => setup[r]).length;
+
+  const rows = ROLES.map(role => {
+    const e = setup[role];
+    if (!e) {
+      return `<div class="setup-row-item not-detected">
+        <span class="setup-role">${esc(role)}</span>
+        <span class="setup-nd">No matching Text Style detected</span>
+      </div>`;
+    }
+    return `<div class="setup-row-item">
+      <span class="setup-role">${esc(role)}</span>
+      <span class="setup-font" title="${esc(e.font??'')}">${esc(e.font??'—')}</span>
+      <span class="setup-size">${e.size ? e.size+'px' : '—'}</span>
+      <span class="setup-weight">${e.weight??'—'}</span>
+      <span class="setup-lh">${e['line-height']??'—'}</span>
+      <span class="setup-ls">${e['letter-spacing']??'—'}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('content').innerHTML = `
+    <div class="setup-header">
+      <span class="section-label">Typography — ${detected}/7 detected</span>
+      <span class="setup-hint">Matched from local Text Styles</span>
+    </div>
+    <div class="setup-grid-head">
+      <span>Role</span>
+      <span>Font</span>
+      <span style="text-align:right">Size</span>
+      <span style="text-align:right">Weight</span>
+      <span style="text-align:right">Line H.</span>
+      <span style="text-align:right">Letter S.</span>
+    </div>
+    <div class="setup-rows">${rows}</div>
+    <div style="margin-top:12px;font-size:10px;color:var(--t3);line-height:1.6">
+      Detection matches Text Style names against: H1–H6, Heading 1–6, Body Text, Body, Paragraph.<br>
+      Styles with "-old", "-v2", "-deprecated" in the name are skipped.
+    </div>`;
 }
 
 function renderItem(item, idx){
@@ -659,12 +731,14 @@ function buildJSON(){
         fontSize: fontSizeArr.length,
         spacing:  spacingArr.length,
         color:    Object.keys(colorObj).length,
+        typography: Object.keys(data.setup ?? {}).length,
       },
     },
     font:     fontArr,
     fontSize: fontSizeArr,
     spacing:  spacingArr,
     color:    colorObj,
+    typography: data.setup ?? {},
   };
 }
 
@@ -729,6 +803,7 @@ window.addEventListener('message',({data:evt})=>{
     document.getElementById('cnt-size').textContent    = data.fontSizes.length;
     document.getElementById('cnt-spacing').textContent = data.spacings.length;
     document.getElementById('cnt-color').textContent   = data.colors.length;
+    document.getElementById('cnt-typography').textContent = Object.keys(data.setup ?? {}).length + '/7';
     document.getElementById('sPages').textContent   = data.totalPages;
     document.getElementById('sNodes').textContent   = data.totalNodes.toLocaleString();
     document.getElementById('sFonts').textContent   = data.fonts.length;
