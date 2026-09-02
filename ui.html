@@ -32,25 +32,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
 .stats-row{display:flex;gap:10px;margin-bottom:8px;color:var(--t2);font-size:10px;flex-wrap:wrap}
 .stats-row b{color:var(--t1);font-weight:600}
 
-/* Scope */
-.scope-bar{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)}
-.scope-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
-.scope-modes{display:flex;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;flex-shrink:0}
-.scope-btn{border:none;background:none;padding:4px 10px;font-size:10px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .12s;white-space:nowrap;font-family:inherit}
-.scope-btn+.scope-btn{border-left:1px solid var(--bd)}
-.scope-btn.active{background:var(--blue);color:#fff}
-.page-picker{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:8px;flex:1;max-height:120px;overflow-y:auto}
-.page-picker::-webkit-scrollbar{width:3px}
-.page-picker::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
-.page-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
-.page-picker-title{font-size:10px;font-weight:600;color:var(--t2)}
-.page-picker-actions{display:flex;gap:6px}
-.pick-action-btn{border:none;background:none;font-size:10px;color:var(--blue);cursor:pointer;padding:0;font-family:inherit}
-.page-item{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;border-radius:3px}
-.page-item input[type=checkbox]{cursor:pointer;accent-color:var(--blue);flex-shrink:0}
-.page-item-name{font-size:11px;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.page-item-name.current::after{content:' ←';color:var(--blue);font-weight:600}
-.pick-count{font-size:10px;color:var(--t3);flex-shrink:0}
 
 /* Tabs */
 .tabs{display:flex;margin-top:0}
@@ -209,7 +190,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v6M2 5l3 3 3-3M1 9h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Export JSON
       </button>
-      <button class="btn btn-primary" id="rescanBtn" disabled>
+      <button class="btn btn-primary" id="rescanBtn">
         <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8.5 5A3.5 3.5 0 1 1 5 1.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/><path d="M5 .5L6.5 2 5 3.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Re-scan
       </button>
@@ -217,30 +198,12 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-
   </div>
 
   <div class="stats-row" id="statsRow" style="display:none">
-    <span><b id="sPages">0</b> pages · <b id="sNodes">0</b> nodes</span>
+    <span><b id="sNodes">0</b> nodes</span>
     <span>· 🔤 <b id="sFonts">0</b></span>
     <span>· 📏 <b id="sSizes">0</b></span>
     <span>· 📐 <b id="sSpacing">0</b></span>
     <span>· 🎨 <b id="sColors">0</b></span>
   </div>
-
-  <div class="scope-bar">
-    <span class="scope-label">Scan</span>
-    <div class="scope-modes">
-      <button class="scope-btn active" data-scope="current">📄 This page</button>
-      <button class="scope-btn" data-scope="all">📋 All pages</button>
-      <button class="scope-btn" data-scope="custom">⊞ Select pages</button>
-    </div>
-    <span class="pick-count" id="pickCount" style="display:none"></span>
-  </div>
-  <div class="page-picker" id="pagePicker" style="display:none">
-    <div class="page-picker-header">
-      <span class="page-picker-title">Select pages to scan</span>
-      <div class="page-picker-actions">
-        <button class="pick-action-btn" onclick="pickAll()">Select all</button>
-        <span style="color:var(--t3)">·</span>
-        <button class="pick-action-btn" onclick="pickNone()">Deselect all</button>
-      </div>
     </div>
     <div id="pageListEl"></div>
   </div>
@@ -299,10 +262,6 @@ let filterMode    = 'all';
 let itemReg       = [];
 let modalItem     = null;
 let removedKeys   = new Set();   // Keys của tokens bị ẩn
-let scanScope     = 'current';
-let pageListData  = [];
-let currentPageId = null;
-let customPageIds = [];
 
 // ─── Naming ───────────────────────────────────────────────────────────────────
 const WEIGHT_MAP = {
@@ -350,38 +309,6 @@ function getTokenType(){
   return 'float';
 }
 
-// ─── Scope ─────────────────────────────────────────────────────────────────────
-document.querySelectorAll('.scope-btn').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    scanScope=btn.dataset.scope;
-    document.querySelectorAll('.scope-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const picker=document.getElementById('pagePicker');
-    if(scanScope==='custom'){
-      picker.style.display='block';
-      if(customPageIds.length===0) customPageIds=currentPageId?[currentPageId]:[];
-      renderPageList();
-    } else {
-      picker.style.display='none';
-      document.getElementById('pickCount').style.display='none';
-    }
-  });
-});
-
-function renderPageList(){
-  document.getElementById('pageListEl').innerHTML=pageListData.map(p=>`
-    <label class="page-item">
-      <input type="checkbox" value="${esc(p.id)}" ${customPageIds.includes(p.id)?'checked':''}
-        onchange="togglePage('${esc(p.id)}',this.checked)">
-      <span class="page-item-name ${p.id===currentPageId?'current':''}">${esc(p.name)}</span>
-    </label>`).join('');
-  updatePickCount();
-}
-function togglePage(id,checked){if(checked){if(!customPageIds.includes(id))customPageIds.push(id);}else{customPageIds=customPageIds.filter(x=>x!==id);}updatePickCount();}
-function pickAll(){customPageIds=pageListData.map(p=>p.id);renderPageList();}
-function pickNone(){customPageIds=[];renderPageList();}
-function updatePickCount(){const cnt=document.getElementById('pickCount');if(scanScope==='custom'){cnt.textContent=`${customPageIds.length}/${pageListData.length}`;cnt.style.display='block';}else{cnt.style.display='none';}}
-function getPageIdsForScan(){if(scanScope==='current') return currentPageId?[currentPageId]:null;if(scanScope==='all') return null;return customPageIds.length?customPageIds:null;}
 
 // ─── Tab switching ────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -397,8 +324,6 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 function post(msg){parent.postMessage({pluginMessage:msg},'*');}
 
 function startScan(){
-  const pageIds=getPageIdsForScan();
-  const label=scanScope==='current'?'this page':scanScope==='all'?'all pages':`${(pageIds??[]).length} pages`;
   data=null;
   document.getElementById('statsRow').style.display='none';
   document.getElementById('rescanBtn').disabled=true;
@@ -406,11 +331,11 @@ function startScan(){
   document.getElementById('content').innerHTML=`
     <div class="loading">
       <div class="spinner"></div>
-      <div class="load-msg" id="loadMsg">Scanning ${label}…</div>
+      <div class="load-msg" id="loadMsg">Scanning current page…</div>
       <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
-      <div class="page-indicator" id="pageIndicator">${pageIds&&pageIds.length===1?'':'Canvas will briefly switch between pages during scan'}</div>
+      <div class="page-indicator" id="pageIndicator"></div>
     </div>`;
-  post({type:'scan',pageIds});
+  post({type:'scan'});
 }
 
 document.getElementById('rescanBtn').addEventListener('click',startScan);
@@ -780,14 +705,13 @@ function buildJSON(){
 
 function exportJSON(){
   if(!data) return;
-  const date=new Date().toISOString().slice(0,10);
   const blob=new Blob([JSON.stringify(buildJSON(),null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href=url; a.download=`design-tokens-${date}.json`;
+  a.href=url; a.download='scan-design-token.json';
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url),1000);
-  toast(`✓ Exported design-tokens-${date}.json`);
+  toast(`✓ Exported scan-design-token.json`);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -817,13 +741,6 @@ window.addEventListener('message',({data:evt})=>{
   const msg=evt?.pluginMessage;
   if(!msg) return;
 
-  if(msg.type==='pages'){
-    pageListData=msg.list; currentPageId=msg.currentPageId;
-    customPageIds=[currentPageId];
-    document.getElementById('rescanBtn').disabled=false;
-    if(scanScope==='custom') renderPageList();
-  }
-
   if(msg.type==='page-start'){
     const pf=document.getElementById('progFill');
     const lm=document.getElementById('loadMsg');
@@ -841,7 +758,6 @@ window.addEventListener('message',({data:evt})=>{
     document.getElementById('cnt-color').textContent   = data.colors.length;
     document.getElementById('cnt-typography').textContent = Object.keys(data.typography ?? {}).length + '/7';
     document.getElementById('cnt-editor').textContent    = Object.keys(data.editor ?? {}).length + '/6';
-    document.getElementById('sPages').textContent   = data.totalPages;
     document.getElementById('sNodes').textContent   = data.totalNodes.toLocaleString();
     document.getElementById('sFonts').textContent   = data.fonts.length;
     document.getElementById('sSizes').textContent   = data.fontSizes.length;

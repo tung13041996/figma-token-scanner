@@ -368,18 +368,12 @@ async function createVar({ collection, name, tokenType, value, hex, opacity }) {
 
 // ─── Message handler ──────────────────────────────────────────────────────────
 figma.ui.onmessage = async msg => {
-  if (msg.type === 'scan')       await scan(msg.pageIds ?? null);
+  if (msg.type === 'scan')       await scan([figma.currentPage.id]);
   if (msg.type === 'highlight')  await highlightNodes(msg.payload);
   if (msg.type === 'create-var') await createVar(msg.payload);
   if (msg.type === 'close')      figma.closePlugin();
 };
 
-// Send the full page list immediately so the UI can populate the page picker
-figma.ui.postMessage({
-  type: 'pages',
-  list: figma.root.children.map(p => ({ id: p.id, name: p.name })),
-  currentPageId: figma.currentPage.id,
-});
 
 // Auto-scan the current page on launch
 scan([figma.currentPage.id]);
