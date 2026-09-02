@@ -1,0 +1,9 @@
+{
+  "name": "Design Token Scanner",
+  "id": "design-token-scanner-viivue-001",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page"
+}

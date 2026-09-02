@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f5f5;--bg3:#ebebeb;--bd:#e5e5e5;
+  --t1:#1e1e1e;--t2:#666;--t3:#999;
+  --blue:#18a0fb;--blue-l:#deeffe;
+  --green:#1bc47d;--green-l:#dcf7ec;
+  --amber:#f5a623;--amber-l:#fef3dc;
+  --purple:#7b61ff;--purple-l:#ede9ff;
+  --red:#f24e1e;
+  --r:6px;--shadow:0 4px 20px rgba(0,0,0,.13);
+}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;font-size:11px;line-height:1.45;color:var(--t1);background:var(--bg);height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Header */
+.header{flex-shrink:0;border-bottom:1px solid var(--bd);padding:10px 14px 0}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.plugin-title{font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.header-actions{display:flex;gap:6px;align-items:center}
+.btn{border-radius:var(--r);padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px;font-family:inherit;transition:all .12s;border:none}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover:not(:disabled){background:#0d8de3}
+.btn-primary:disabled{background:var(--t3);cursor:default}
+.btn-outline{background:none;color:var(--t2);border:1px solid var(--bd) !important}
+.btn-outline:hover:not(:disabled){border-color:var(--blue) !important;color:var(--blue)}
+.btn-outline:disabled{opacity:.4;cursor:default}
+
+.stats-row{display:flex;gap:10px;margin-bottom:8px;color:var(--t2);font-size:10px;flex-wrap:wrap}
+.stats-row b{color:var(--t1);font-weight:600}
+
+/* Scope */
+.scope-bar{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bd)}
+.scope-label{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;flex-shrink:0}
+.scope-modes{display:flex;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;flex-shrink:0}
+.scope-btn{border:none;background:none;padding:4px 10px;font-size:10px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .12s;white-space:nowrap;font-family:inherit}
+.scope-btn+.scope-btn{border-left:1px solid var(--bd)}
+.scope-btn.active{background:var(--blue);color:#fff}
+.page-picker{background:var(--bg);border:1px solid var(--bd);border-radius:var(--r);padding:8px;flex:1;max-height:120px;overflow-y:auto}
+.page-picker::-webkit-scrollbar{width:3px}
+.page-picker::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
+.page-picker-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+.page-picker-title{font-size:10px;font-weight:600;color:var(--t2)}
+.page-picker-actions{display:flex;gap:6px}
+.pick-action-btn{border:none;background:none;font-size:10px;color:var(--blue);cursor:pointer;padding:0;font-family:inherit}
+.page-item{display:flex;align-items:center;gap:7px;padding:3px 0;cursor:pointer;border-radius:3px}
+.page-item input[type=checkbox]{cursor:pointer;accent-color:var(--blue);flex-shrink:0}
+.page-item-name{font-size:11px;color:var(--t1);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.page-item-name.current::after{content:' ←';color:var(--blue);font-weight:600}
+.pick-count{font-size:10px;color:var(--t3);flex-shrink:0}
+
+/* Tabs */
+.tabs{display:flex;margin-top:0}
+.tab-btn{border:none;background:none;cursor:pointer;font-size:11px;font-weight:500;color:var(--t2);padding:6px 11px;border-bottom:2px solid transparent;display:flex;align-items:center;gap:5px;transition:all .12s;font-family:inherit}
+.tab-btn:hover{color:var(--t1)}
+.tab-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.tab-cnt{background:var(--bg2);border-radius:10px;padding:1px 6px;font-size:10px;font-weight:600;min-width:18px;text-align:center}
+.tab-btn.active .tab-cnt{background:var(--blue-l);color:var(--blue)}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:12px 14px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:#ddd;border-radius:2px}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:6px;margin-bottom:8px}
+.filter-input{flex:1;border:1px solid var(--bd);border-radius:var(--r);padding:5px 8px;font-size:11px;outline:none;background:var(--bg);color:var(--t1);transition:border-color .12s;font-family:inherit}
+.filter-input:focus{border-color:var(--blue)}
+.filter-input::placeholder{color:var(--t3)}
+.filter-modes{display:flex;border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.fm-btn{border:none;background:none;padding:4px 9px;font-size:10px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .12s;white-space:nowrap;font-family:inherit}
+.fm-btn+.fm-btn{border-left:1px solid var(--bd)}
+.fm-btn.active{background:var(--blue);color:#fff}
+
+.list-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--t3)}
+.hidden-pill{background:var(--bg2);border-radius:10px;padding:2px 8px;font-size:10px;color:var(--t2);display:flex;align-items:center;gap:6px}
+.restore-btn{border:none;background:none;color:var(--blue);cursor:pointer;font-size:10px;font-family:inherit;padding:0}
+.restore-btn:hover{text-decoration:underline}
+
+/* Token list */
+.token-list{display:flex;flex-direction:column;gap:5px}
+.token-item{border:1px solid var(--bd);border-radius:var(--r);padding:7px 9px;display:flex;align-items:center;gap:8px;transition:border-color .12s;min-height:44px}
+.token-item:hover{border-color:#ccc}
+
+/* Previews */
+.swatch{width:28px;height:28px;border-radius:4px;flex-shrink:0;border:1px solid rgba(0,0,0,.1);background-image:linear-gradient(45deg,#ccc 25%,transparent 25%),linear-gradient(-45deg,#ccc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#ccc 75%),linear-gradient(-45deg,transparent 75%,#ccc 75%);background-size:8px 8px;background-position:0 0,0 4px,4px -4px,-4px 0;position:relative}
+.swatch-inner{position:absolute;inset:0;border-radius:3px}
+.preview-box{width:28px;height:28px;flex-shrink:0;background:var(--bg2);border-radius:4px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--t2);font-size:9px}
+.font-face-preview{width:44px;height:28px;flex-shrink:0;background:var(--bg2);border-radius:4px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;letter-spacing:-.3px;color:var(--t1);overflow:hidden}
+
+/* Info */
+.tok-info{flex:1;min-width:0}
+.tok-value{font-weight:600;font-size:12px;font-variant-numeric:tabular-nums;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.tok-value:hover{color:var(--blue)}
+.tok-sub{font-size:10px;color:var(--t2);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tok-meta{display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:wrap}
+.tok-uses{font-size:10px;color:var(--t3)}
+.type-tag{background:var(--bg2);border-radius:3px;padding:1px 4px;font-size:9px;color:var(--t2)}
+.page-badge{background:var(--bg2);border:1px solid var(--bd);border-radius:3px;padding:1px 5px;font-size:9px;color:var(--t3)}
+
+/* Action area */
+.tok-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+
+/* Status badges */
+.var-badge{display:flex;align-items:center;gap:4px;border-radius:4px;padding:3px 7px;font-size:10px;font-weight:500;max-width:140px}
+.var-badge.bound{background:var(--green-l);color:#0e9959}
+.var-badge.style-bound{background:var(--purple-l);color:#5a3fd4}
+.badge-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Direct create button */
+.btn-create{
+  background:var(--amber-l);border:1px solid #e8c96b;color:#b87800;
+  border-radius:4px;padding:3px 8px;font-size:10px;font-weight:500;
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+  max-width:140px;overflow:hidden;text-overflow:ellipsis;
+  transition:all .12s;
+}
+.btn-create:hover{background:#fde9a2;border-color:#d4a840}
+
+/* Icon buttons */
+.icon-btn{
+  width:24px;height:24px;border-radius:4px;border:1px solid var(--bd);
+  background:none;cursor:pointer;font-size:12px;color:var(--t2);
+  display:flex;align-items:center;justify-content:center;
+  transition:all .12s;flex-shrink:0;
+}
+.icon-btn:hover{border-color:#bbb;color:var(--t1);background:var(--bg2)}
+.icon-btn.find-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-l)}
+.icon-btn.custom-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-l)}
+.icon-btn.remove-btn:hover{border-color:var(--red);color:var(--red);background:#fde9e5}
+
+/* Loading */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;gap:12px;color:var(--t2)}
+.spinner{width:24px;height:24px;border:2px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-bar{width:180px;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--blue);border-radius:2px;transition:width .2s ease}
+.load-msg{font-size:11px;color:var(--t2)}
+.page-indicator{font-size:10px;color:var(--t3);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.empty{text-align:center;padding:32px;color:var(--t2)}
+.empty-icon{font-size:22px;margin-bottom:8px}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50;animation:fadeIn .1s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:8px;padding:16px;width:300px;box-shadow:var(--shadow);animation:slideUp .15s ease}
+@keyframes slideUp{from{transform:translateY(6px);opacity:0}to{transform:none;opacity:1}}
+.modal-title{font-size:12px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.modal-preview{display:flex;align-items:center;gap:8px;background:var(--bg2);border-radius:4px;padding:6px 8px;margin-bottom:12px;font-size:11px;color:var(--t1);font-weight:500}
+.modal-field{margin-bottom:10px}
+.modal-label{display:block;font-size:10px;font-weight:500;color:var(--t2);margin-bottom:4px}
+.modal-input{width:100%;border:1px solid var(--bd);border-radius:var(--r);padding:6px 8px;font-size:11px;outline:none;color:var(--t1);transition:border-color .12s;font-family:'SF Mono','Fira Code',monospace}
+.modal-input:focus{border-color:var(--blue)}
+.modal-hint{font-size:10px;color:var(--t3);margin-top:3px}
+.modal-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:14px}
+.btn-cancel{border:1px solid var(--bd);background:none;border-radius:var(--r);padding:5px 12px;font-size:11px;cursor:pointer;color:var(--t2);font-family:inherit}
+.btn-cancel:hover{background:var(--bg2)}
+.btn-modal-create{background:var(--blue);color:#fff;border:none;border-radius:var(--r);padding:5px 12px;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:background .12s}
+.btn-modal-create:hover{background:#0d8de3}
+
+#toast{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:500;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap;z-index:100}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <span class="plugin-title">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <rect x="1" y="1" width="5" height="5" rx="1" fill="#18a0fb"/>
+        <rect x="8" y="1" width="5" height="5" rx="1" fill="#7b61ff"/>
+        <rect x="1" y="8" width="5" height="5" rx="1" fill="#f5a623"/>
+        <rect x="8" y="8" width="5" height="5" rx="1" fill="#1bc47d"/>
+      </svg>
+      Design Token Scanner
+    </span>
+    <div class="header-actions">
+      <button class="btn btn-outline" id="exportBtn" disabled>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v6M2 5l3 3 3-3M1 9h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Export JSON
+      </button>
+      <button class="btn btn-primary" id="rescanBtn" disabled>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M8.5 5A3.5 3.5 0 1 1 5 1.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/><path d="M5 .5L6.5 2 5 3.5" stroke="white" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Re-scan
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none">
+    <span><b id="sPages">0</b> pages · <b id="sNodes">0</b> nodes</span>
+    <span>· 🔤 <b id="sFonts">0</b></span>
+    <span>· 📏 <b id="sSizes">0</b></span>
+    <span>· 📐 <b id="sSpacing">0</b></span>
+    <span>· 🎨 <b id="sColors">0</b></span>
+  </div>
+
+  <div class="scope-bar">
+    <span class="scope-label">Scan</span>
+    <div class="scope-modes">
+      <button class="scope-btn active" data-scope="current">📄 This page</button>
+      <button class="scope-btn" data-scope="all">📋 All pages</button>
+      <button class="scope-btn" data-scope="custom">⊞ Select pages</button>
+    </div>
+    <span class="pick-count" id="pickCount" style="display:none"></span>
+  </div>
+  <div class="page-picker" id="pagePicker" style="display:none">
+    <div class="page-picker-header">
+      <span class="page-picker-title">Select pages to scan</span>
+      <div class="page-picker-actions">
+        <button class="pick-action-btn" onclick="pickAll()">Select all</button>
+        <span style="color:var(--t3)">·</span>
+        <button class="pick-action-btn" onclick="pickNone()">Deselect all</button>
+      </div>
+    </div>
+    <div id="pageListEl"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="font">🔤 Font <span class="tab-cnt" id="cnt-font">—</span></button>
+    <button class="tab-btn" data-tab="size">📏 Sizes <span class="tab-cnt" id="cnt-size">—</span></button>
+    <button class="tab-btn" data-tab="spacing">📐 Spacing <span class="tab-cnt" id="cnt-spacing">—</span></button>
+    <button class="tab-btn" data-tab="color">🎨 Color <span class="tab-cnt" id="cnt-color">—</span></button>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div class="load-msg" id="loadMsg">Scanning current page…</div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    <div class="page-indicator" id="pageIndicator"></div>
+  </div>
+</div>
+
+<!-- Modal create custom name -->
+<div class="modal-overlay" id="modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal">
+    <div class="modal-title">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#18a0fb" stroke-width="1.5"/><path d="M6 4v4M4 6h4" stroke="#18a0fb" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Custom Variable Name
+    </div>
+    <div class="modal-preview" id="modalPreview"></div>
+    <div class="modal-field">
+      <label class="modal-label" for="varName">Variable Name</label>
+      <input class="modal-input" id="varName" type="text" autocomplete="off" spellcheck="false">
+      <div class="modal-hint">Use "/" to create groups, e.g. color/primary/500</div>
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" for="varCollection">Collection</label>
+      <input class="modal-input" id="varCollection" type="text" value="Design Tokens" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">Cancel</button>
+      <button class="btn-modal-create" id="modalCreate">Create variable</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── State ─────────────────────────────────────────────────────────────────────
+let data          = null;
+let tab           = 'font';
+let filterText    = '';
+let filterMode    = 'all';
+let itemReg       = [];
+let modalItem     = null;
+let removedKeys   = new Set();   // Keys của tokens bị ẩn
+let scanScope     = 'current';
+let pageListData  = [];
+let currentPageId = null;
+let customPageIds = [];
+
+// ─── Naming ───────────────────────────────────────────────────────────────────
+const WEIGHT_MAP = {
+  'Thin':'thin','ExtraLight':'extra-light','Extra Light':'extra-light',
+  'Light':'light','Regular':'regular','Medium':'medium',
+  'SemiBold':'semi-bold','Semi Bold':'semi-bold',
+  'Bold':'bold','ExtraBold':'extra-bold','Extra Bold':'extra-bold',
+  'Black':'black','Italic':'italic','Bold Italic':'bold-italic',
+};
+function slugify(s){return(s??'').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-');}
+
+function suggestName(item) {
+  if(tab==='font')    return `font/${slugify(item.family)}/${WEIGHT_MAP[item.weight]??slugify(item.weight)}`;
+  if(tab==='size')    return `font-size/${item.value}`;
+  if(tab==='spacing') return `spacing/${item.value}`;
+  if(tab==='color'){
+    const hex=item.hex.slice(1).toLowerCase();
+    const op=item.opacity<1?`-${Math.round(item.opacity*100)}`:'';
+    return `color/${hex}${op}`;
+  }
+  return '';
+}
+
+function isDefined(item){
+  if(tab==='font')  return !!(item.style);
+  if(tab==='color') return !!(item.variable||item.style);
+  // size + spacing: variable OR text style (for sizes)
+  return !!(item.variable||item.style);
+}
+
+function definedInfo(item){
+  if(tab==='font')  return item.style?{type:'style',name:item.style.name}:null;
+  if(tab==='color'){
+    if(item.variable) return {type:'variable',name:item.variable.name};
+    if(item.style)    return {type:'style',name:item.style.name};
+    return null;
+  }
+  if(item.variable) return {type:'variable',name:item.variable.name};
+  if(item.style)    return {type:'style',name:item.style.name};
+  return null;
+}
+
+function getTokenType(){
+  if(tab==='color')  return 'color';
+  return 'float';
+}
+
+// ─── Scope ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.scope-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    scanScope=btn.dataset.scope;
+    document.querySelectorAll('.scope-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const picker=document.getElementById('pagePicker');
+    if(scanScope==='custom'){
+      picker.style.display='block';
+      if(customPageIds.length===0) customPageIds=currentPageId?[currentPageId]:[];
+      renderPageList();
+    } else {
+      picker.style.display='none';
+      document.getElementById('pickCount').style.display='none';
+    }
+  });
+});
+
+function renderPageList(){
+  document.getElementById('pageListEl').innerHTML=pageListData.map(p=>`
+    <label class="page-item">
+      <input type="checkbox" value="${esc(p.id)}" ${customPageIds.includes(p.id)?'checked':''}
+        onchange="togglePage('${esc(p.id)}',this.checked)">
+      <span class="page-item-name ${p.id===currentPageId?'current':''}">${esc(p.name)}</span>
+    </label>`).join('');
+  updatePickCount();
+}
+function togglePage(id,checked){if(checked){if(!customPageIds.includes(id))customPageIds.push(id);}else{customPageIds=customPageIds.filter(x=>x!==id);}updatePickCount();}
+function pickAll(){customPageIds=pageListData.map(p=>p.id);renderPageList();}
+function pickNone(){customPageIds=[];renderPageList();}
+function updatePickCount(){const cnt=document.getElementById('pickCount');if(scanScope==='custom'){cnt.textContent=`${customPageIds.length}/${pageListData.length}`;cnt.style.display='block';}else{cnt.style.display='none';}}
+function getPageIdsForScan(){if(scanScope==='current') return currentPageId?[currentPageId]:null;if(scanScope==='all') return null;return customPageIds.length?customPageIds:null;}
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    tab=btn.dataset.tab; filterText=''; filterMode='all';
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    if(data) render();
+  });
+});
+
+// ─── Scan ─────────────────────────────────────────────────────────────────────
+function post(msg){parent.postMessage({pluginMessage:msg},'*');}
+
+function startScan(){
+  const pageIds=getPageIdsForScan();
+  const label=scanScope==='current'?'this page':scanScope==='all'?'all pages':`${(pageIds??[]).length} pages`;
+  data=null;
+  document.getElementById('statsRow').style.display='none';
+  document.getElementById('rescanBtn').disabled=true;
+  document.getElementById('exportBtn').disabled=true;
+  document.getElementById('content').innerHTML=`
+    <div class="loading">
+      <div class="spinner"></div>
+      <div class="load-msg" id="loadMsg">Scanning ${label}…</div>
+      <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+      <div class="page-indicator" id="pageIndicator">${pageIds&&pageIds.length===1?'':'Canvas will briefly switch between pages during scan'}</div>
+    </div>`;
+  post({type:'scan',pageIds});
+}
+
+document.getElementById('rescanBtn').addEventListener('click',startScan);
+document.getElementById('exportBtn').addEventListener('click',exportJSON);
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function getItems(){
+  if(!data) return [];
+  return {font:data.fonts,size:data.fontSizes,spacing:data.spacings,color:data.colors}[tab]??[];
+}
+
+function render(){
+  const all     = getItems().filter(i=>!removedKeys.has(i.key));
+  const hidden  = getItems().filter(i=>removedKeys.has(i.key));
+  const bound   = all.filter(i=>isDefined(i));
+  const unbound = all.filter(i=>!isDefined(i));
+
+  let filtered=all;
+  if(filterMode==='bound')   filtered=bound;
+  if(filterMode==='unbound') filtered=unbound;
+  if(filterText){
+    const q=filterText;
+    filtered=filtered.filter(item=>{
+      const parts=[
+        tab==='font'?`${item.family} ${item.weight}`:'',
+        tab==='color'?item.hex:'',
+        tab!=='font'&&tab!=='color'?String(item.value):'',
+        item.variable?.name??'',item.variable?.collection??'',
+        item.style?.name??'',
+        (item.nodes??[]).join(' '),
+        suggestName(item),
+      ];
+      return parts.some(p=>p.toLowerCase().includes(q));
+    });
+  }
+  itemReg=filtered;
+
+  const hiddenBadge=hidden.length>0?`
+    <div class="hidden-pill">
+      ${hidden.length} hidden
+      <button class="restore-btn" onclick="restoreAll()">Restore all</button>
+    </div>`:''
+
+  const html=`
+    <div class="filter-bar">
+      <input class="filter-input" id="filterInput" placeholder="Filter by value, variable, page…" value="${esc(filterText)}">
+      <div class="filter-modes">
+        <button class="fm-btn ${filterMode==='all'?'active':''}" data-mode="all">All ${all.length}</button>
+        <button class="fm-btn ${filterMode==='bound'?'active':''}" data-mode="bound">✓ ${bound.length}</button>
+        <button class="fm-btn ${filterMode==='unbound'?'active':''}" data-mode="unbound">⚠ ${unbound.length}</button>
+      </div>
+    </div>
+    <div class="list-meta">
+      <span class="section-label">${filtered.length} value${filtered.length!==1?'s':''}</span>
+      ${hiddenBadge}
+    </div>
+    ${filtered.length===0
+      ?`<div class="empty"><div class="empty-icon">🔍</div>No results</div>`
+      :`<div class="token-list">${filtered.map((item,idx)=>renderItem(item,idx)).join('')}</div>`
+    }`;
+
+  document.getElementById('content').innerHTML=html;
+
+  document.getElementById('filterInput').addEventListener('input',e=>{filterText=e.target.value.toLowerCase();render();});
+  document.querySelectorAll('.fm-btn').forEach(btn=>btn.addEventListener('click',()=>{filterMode=btn.dataset.mode;render();}));
+}
+
+function renderItem(item, idx){
+  const defined = isDefined(item);
+  const defInfo = definedInfo(item);
+  const suggest = suggestName(item);
+  const canCreate = tab!=='font';
+
+  let preview='', valueTxt='', subTxt='', metaExtra='';
+  if(tab==='font'){
+    preview=`<div class="font-face-preview" style="font-family:'${esc(item.family)}',system-ui,sans-serif">Aa</div>`;
+    valueTxt=esc(item.family); subTxt=`<div class="tok-sub">${esc(item.weight)}</div>`;
+  } else if(tab==='color'){
+    const bg=item.opacity<1?`rgba(${hexToRgb(item.hex)},${item.opacity})`:item.hex;
+    const op=item.opacity<1?` · ${Math.round(item.opacity*100)}%`:'';
+    preview=`<div class="swatch"><div class="swatch-inner" style="background:${bg}"></div></div>`;
+    valueTxt=esc(`${item.hex}${op}`);
+  } else if(tab==='size'){
+    preview=`<div class="preview-box">${item.value}</div>`;
+    valueTxt=`${item.value}px`;
+  } else {
+    preview=`<div class="preview-box">${item.value}</div>`;
+    valueTxt=`${item.value}px`;
+    if(item.types?.length) metaExtra=item.types.map(t=>`<span class="type-tag">${esc(fmtProp(t))}</span>`).join('');
+  }
+
+  const pageBadge=item.pageCount>1?`<span class="page-badge">${item.pageCount} pages</span>`:'';
+
+  // Action area
+  let statusHtml='';
+  if(defined&&defInfo){
+    const cls=defInfo.type==='style'?'style-bound':'bound';
+    const icon=defInfo.type==='style'?'◈':'✓';
+    statusHtml=`<span class="var-badge ${cls}" title="${esc(defInfo.name)}">${icon} <span class="badge-name">${esc(defInfo.name)}</span></span>`;
+  } else {
+    // Short suggested name for button label
+    const short=suggest.length>18?suggest.slice(0,16)+'…':suggest;
+    statusHtml=canCreate
+      ?`<button class="btn-create" data-idx="${idx}" title="Create variable: ${esc(suggest)}">+ &quot;${esc(short)}&quot;</button>
+         <button class="icon-btn custom-btn" data-idx="${idx}" title="Custom name">✎</button>`
+      :`<button class="btn-create" data-idx="${idx}" style="cursor:default;pointer-events:none;opacity:.7">⚠ ${esc(short)}</button>`;
+  }
+
+  const findBtn=`<button class="icon-btn find-btn" data-idx="${idx}" title="Find in canvas">
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="4.5" cy="4.5" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M7.5 7.5L10 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+  </button>`;
+  const removeBtn=`<button class="icon-btn remove-btn" data-idx="${idx}" title="Hide token">×</button>`;
+
+  return `
+    <div class="token-item">
+      ${preview}
+      <div class="tok-info">
+        <div class="tok-value" data-idx="${idx}">${valueTxt}</div>
+        ${subTxt}
+        <div class="tok-meta">
+          <span class="tok-uses">${item.count} use${item.count!==1?'s':''}</span>
+          ${pageBadge}${metaExtra}
+        </div>
+      </div>
+      <div class="tok-actions">
+        ${statusHtml}
+        ${findBtn}
+        ${removeBtn}
+      </div>
+    </div>`;
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+function findNodes(item){
+  if(!item) return;
+  const payload={tokenType:tab,value:item.value,family:item.family,weight:item.weight,hex:item.hex,opacity:item.opacity};
+  post({type:'highlight',payload});
+  toast('🔍 Searching in canvas…');
+}
+
+function createDirectly(item){
+  if(!item) return;
+  const name=suggestName(item);
+  const collection='Design Tokens';
+  post({type:'create-var',payload:{collection,name,tokenType:getTokenType(),value:item.value,hex:item.hex,opacity:item.opacity}});
+}
+
+function removeToken(item){
+  if(!item) return;
+  removedKeys.add(item.key);
+  render();
+  toast(`Token hidden`);
+}
+
+function restoreAll(){removedKeys.clear();render();}
+
+// ─── Modal (custom name) ──────────────────────────────────────────────────────
+function openModal(item){
+  modalItem=item;
+  let previewHtml='';
+  if(tab==='color'){const bg=item.opacity<1?`rgba(${hexToRgb(item.hex)},${item.opacity})`:item.hex;previewHtml=`<div class="swatch" style="width:18px;height:18px;flex-shrink:0"><div class="swatch-inner" style="background:${bg}"></div></div>`;}
+  previewHtml+=`<span>${esc(tab==='color'?item.hex:`${item.value}px`)}</span>`;
+  document.getElementById('modalPreview').innerHTML=previewHtml;
+  document.getElementById('varName').value=suggestName(item);
+  document.getElementById('modal').style.display='flex';
+  requestAnimationFrame(()=>{document.getElementById('varName').focus();document.getElementById('varName').select();});
+}
+function closeModal(){document.getElementById('modal').style.display='none';modalItem=null;}
+document.getElementById('modalCancel').addEventListener('click',closeModal);
+document.getElementById('modal').addEventListener('click',e=>{if(e.target===document.getElementById('modal'))closeModal();});
+['varName','varCollection'].forEach(id=>{
+  document.getElementById(id).addEventListener('keydown',e=>{
+    if(e.key==='Enter')document.getElementById('modalCreate').click();
+    if(e.key==='Escape')closeModal();
+  });
+});
+document.getElementById('modalCreate').addEventListener('click',()=>{
+  const name=document.getElementById('varName').value.trim();
+  const collection=document.getElementById('varCollection').value.trim()||'Design Tokens';
+  if(!name){document.getElementById('varName').focus();return;}
+  post({type:'create-var',payload:{collection,name,tokenType:getTokenType(),value:modalItem.value,hex:modalItem.hex,opacity:modalItem.opacity}});
+  closeModal();
+});
+
+// ─── Export JSON ──────────────────────────────────────────────────────────────
+function buildJSON(){
+  if(!data) return {};
+  const date = new Date().toISOString().slice(0,10);
+
+  const fonts    = data.fonts.filter(i=>!removedKeys.has(i.key));
+  const sizes    = data.fontSizes.filter(i=>!removedKeys.has(i.key));
+  const spacings = data.spacings.filter(i=>!removedKeys.has(i.key));
+  const colors   = data.colors.filter(i=>!removedKeys.has(i.key));
+
+  // ── 1. Font: group by family, weights → numbers ───────────────────────────
+  const WEIGHT_NUM = {
+    'Thin':100,
+    'ExtraLight':200,'Extra Light':200,'Extra-Light':200,
+    'Light':300,
+    'Regular':400,'Normal':400,
+    'Italic':400,                          // italic = same numeric as regular
+    'Medium':500,'Medium Italic':500,
+    'SemiBold':600,'Semi Bold':600,'Semi-Bold':600,
+    'Bold':700,'Bold Italic':700,
+    'ExtraBold':800,'Extra Bold':800,'Extra-Bold':800,
+    'Black':900,
+  };
+
+  const familyMap = new Map(); // family → Set<number>
+  for (const item of fonts) {
+    if (!familyMap.has(item.family)) familyMap.set(item.family, new Set());
+    familyMap.get(item.family).add(WEIGHT_NUM[item.weight] ?? 400);
+  }
+  const fontArr = [...familyMap.entries()]
+    .map(([family, weights]) => ({ family, weight: [...weights].sort((a,b)=>a-b) }))
+    .sort((a,b) => a.family.localeCompare(b.family));
+
+  // ── 2. fontSize: flat array of unique numbers ─────────────────────────────
+  const fontSizeArr = [...new Set(sizes.map(i=>i.value))].sort((a,b)=>a-b);
+
+  // ── 3. spacing: flat array of unique numbers ──────────────────────────────
+  const spacingArr = [...new Set(spacings.map(i=>i.value))].sort((a,b)=>a-b);
+
+  // ── 4. color: { "name": "#hex" } ─────────────────────────────────────────
+  // Tên lấy từ: variable > style > hex fallback
+  // Lowercase, spaces/slashes → "-"
+  function toColorKey(s) {
+    return s.toLowerCase()
+      .replace(/\s*\/\s*/g, '-')     // path separators
+      .replace(/\s+/g, '-')          // spaces
+      .replace(/[^a-z0-9-]/g, '')    // strip other chars
+      .replace(/-+/g, '-')           // collapse dashes
+      .replace(/^-|-$/g, '');        // trim edges
+  }
+
+  const colorObj = {};
+  for (const item of colors) {
+    // Determine name key
+    let key;
+    if (item.variable) {
+      key = toColorKey(item.variable.name);
+    } else if (item.style) {
+      key = toColorKey(item.style.name);
+    } else {
+      key = item.hex.slice(1).toLowerCase();
+      if (item.opacity < 1) key += `-${Math.round(item.opacity*100)}`;
+    }
+
+    // Deduplicate: if key already exists, append -2, -3 ...
+    let uniqueKey = key;
+    let n = 2;
+    while (Object.prototype.hasOwnProperty.call(colorObj, uniqueKey)) {
+      uniqueKey = `${key}-${n++}`;
+    }
+
+    // Color value: plain hex or rgba when opacity < 100%
+    const value = item.opacity < 1
+      ? `rgba(${hexToRgb(item.hex)},${item.opacity})`
+      : item.hex.toLowerCase();
+
+    colorObj[uniqueKey] = value;
+  }
+
+  return {
+    _meta: {
+      tool:   'Viivue - Design Token Scanner',
+      date,
+      pages:  data.totalPages,
+      nodes:  data.totalNodes,
+      hidden: removedKeys.size,
+      summary: {
+        font:     fontArr.length,
+        fontSize: fontSizeArr.length,
+        spacing:  spacingArr.length,
+        color:    Object.keys(colorObj).length,
+      },
+    },
+    font:     fontArr,
+    fontSize: fontSizeArr,
+    spacing:  spacingArr,
+    color:    colorObj,
+  };
+}
+
+function exportJSON(){
+  if(!data) return;
+  const date=new Date().toISOString().slice(0,10);
+  const blob=new Blob([JSON.stringify(buildJSON(),null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`design-tokens-${date}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`✓ Exported design-tokens-${date}.json`);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function hexToRgb(hex){return`${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;}
+const PROP_LABEL={itemSpacing:'Gap',counterAxisSpacing:'Gap↔',paddingTop:'PT',paddingRight:'PR',paddingBottom:'PB',paddingLeft:'PL'};
+function fmtProp(p){return PROP_LABEL[p]??p;}
+function toast(msg,dur=2500){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),dur);}
+
+// ─── Content click — set up ONCE, outside render() ──────────────────────────────
+// itemReg is always up-to-date after each render, so no need to re-attach the listener.
+document.getElementById('content').addEventListener('click', e => {
+  const tokVal    = e.target.closest('.tok-value');
+  if (tokVal)    { const idx = +tokVal.dataset.idx;    if (!isNaN(idx)) findNodes(itemReg[idx]);    return; }
+  const findBtn   = e.target.closest('.find-btn');
+  if (findBtn)   { findNodes(itemReg[+findBtn.dataset.idx]);                                         return; }
+  const createBtn = e.target.closest('.btn-create');
+  if (createBtn) { createDirectly(itemReg[+createBtn.dataset.idx]);                                  return; }
+  const customBtn = e.target.closest('.custom-btn');
+  if (customBtn) { openModal(itemReg[+customBtn.dataset.idx]);                                       return; }
+  const removeBtn = e.target.closest('.remove-btn');
+  if (removeBtn) { removeToken(itemReg[+removeBtn.dataset.idx]);                                     return; }
+});
+
+// ─── Plugin messages ──────────────────────────────────────────────────────────
+window.addEventListener('message',({data:evt})=>{
+  const msg=evt?.pluginMessage;
+  if(!msg) return;
+
+  if(msg.type==='pages'){
+    pageListData=msg.list; currentPageId=msg.currentPageId;
+    customPageIds=[currentPageId];
+    document.getElementById('rescanBtn').disabled=false;
+    if(scanScope==='custom') renderPageList();
+  }
+
+  if(msg.type==='page-start'){
+    const pf=document.getElementById('progFill');
+    const lm=document.getElementById('loadMsg');
+    const pi=document.getElementById('pageIndicator');
+    if(pf) pf.style.width=msg.pct+'%';
+    if(lm) lm.textContent=`Scanning ${msg.pageIdx}/${msg.pageTotal}… ${msg.pct}%`;
+    if(pi) pi.textContent=`"${msg.pageName}"`;
+  }
+
+  if(msg.type==='result'){
+    data=msg.data;
+    document.getElementById('cnt-font').textContent    = data.fonts.length;
+    document.getElementById('cnt-size').textContent    = data.fontSizes.length;
+    document.getElementById('cnt-spacing').textContent = data.spacings.length;
+    document.getElementById('cnt-color').textContent   = data.colors.length;
+    document.getElementById('sPages').textContent   = data.totalPages;
+    document.getElementById('sNodes').textContent   = data.totalNodes.toLocaleString();
+    document.getElementById('sFonts').textContent   = data.fonts.length;
+    document.getElementById('sSizes').textContent   = data.fontSizes.length;
+    document.getElementById('sSpacing').textContent = data.spacings.length;
+    document.getElementById('sColors').textContent  = data.colors.length;
+    document.getElementById('statsRow').style.display='flex';
+    document.getElementById('rescanBtn').disabled=false;
+    document.getElementById('exportBtn').disabled=false;
+    filterText=''; filterMode='all';
+    render();
+  }
+
+  if(msg.type==='highlighted'){
+    if(msg.count===0) toast('⚠ Not found on the current page');
+    else toast(`✓ Selected ${msg.count} node${msg.count!==1?'s':''}`);
+  }
+
+  if(msg.type==='var-created'){
+    if(msg.ok){toast(`✓ Variable "${msg.name}" created`);setTimeout(startScan,1200);}
+    else toast(`✗ ${msg.err}`);
+  }
+});
+</script>
+</body>
+</html>
