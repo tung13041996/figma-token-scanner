@@ -1,128 +1,75 @@
 # Design Token Scanner
 
-A Figma plugin for auditing design files and extracting raw design token values — **font families**, **font sizes**, **spacing**, **colors**, **typography scale**, and **UI text styles** — with full support for Figma Variables and Text Styles detection.
-
----
-
-## Features
-
-**Token scanning**
-- Scans the current Figma page and extracts all raw design values
-- Detects whether each value is backed by a Figma Variable, a Text Style, or is completely untracked
-- Suggested variable names for every untracked token, following a consistent naming convention
-- One-click variable creation directly from the plugin, or open a custom name dialog to edit before saving
-- Click any token to select all matching nodes on the canvas — including nodes hidden inside collapsed frames or accordion components
-- Hide irrelevant tokens (e.g. rounding artifacts) — hidden tokens are excluded from the JSON export
-
-**Typography detection**
-- Reads all local Text Styles and automatically splits them into two tabs
-- **Typography tab**: styles whose name matches h1–h6, Big Heading, or Body Text (with optional number suffix)
-- **Editor tab**: all remaining styles (label, subtitle, CTA, caption, button, overline, etc.)
-- Styles are grouped by their Figma style group name when a group is present
-- Each style shows: font family, size, weight, line-height (unitless ratio), letter-spacing (in em)
-- Letter-spacing is omitted from the output when the value is 0
-- Deprecated styles (names containing `-old`, `-v2`, `-deprecated`, `-legacy`) are skipped automatically
-
-**Export**
-- One-click JSON export structured for build pipelines or style-dictionary workflows
+A Figma plugin that scans your design file and extracts raw token values — font families, font sizes, spacing, colors, and text styles — so you can see exactly what's defined (or missing) in your design system.
 
 ---
 
 ## Requirements
 
-| Requirement | Notes |
-|---|---|
-| **Figma Desktop** | Does not run in the browser-based Figma editor |
-| **Figma plan** | Reading Variable bindings requires a Professional or Organization plan. Raw token values are available on all plans |
+- **Figma Desktop** — does not run in the browser editor
+- **Figma Professional or Organization plan** — required to read Variable bindings. Raw token values work on all plans.
 
 ---
 
 ## Installation
 
-> No build step or Node.js required — the plugin runs directly from source files.
+> No build step or Node.js required.
 
-1. Clone or download this repository to a **stable location** on your machine. Figma stores the absolute path to `manifest.json`, so moving the folder later will break the plugin.
+1. Clone or download this repository to a **stable folder** on your machine.
+   Figma stores the absolute path to `manifest.json`, so avoid moving the folder later.
 2. Open **Figma Desktop**.
 3. Go to **Plugins → Development → Import plugin from manifest…**
 4. Select `manifest.json` from the project folder.
-5. The plugin appears under **Plugins → Development → Design Token Scanner**.
+5. The plugin is now available under **Plugins → Development → Design Token Scanner**.
 
-**Updating** — after editing `code.js` or `ui.html`, close and reopen the plugin inside Figma. No re-import needed.
+**To update** — after editing `code.js` or `ui.html`, simply close and reopen the plugin. No re-import needed.
 
 ---
 
 ## Usage
 
-### Opening the plugin
+Open the plugin via **Plugins → Development → Design Token Scanner**. It scans the current page automatically.
 
-**Plugins → Development → Design Token Scanner**
+### Tabs
 
-The plugin opens and immediately scans the current page.
+| Tab | What it shows |
+|---|---|
+| 🔤 **Font** | Font families and weights used across all text nodes |
+| 📏 **Sizes** | Font sizes used across all text nodes |
+| 📐 **Spacing** | Gap and padding values from auto-layout frames |
+| 🎨 **Color** | Fill and stroke colors from all nodes |
+| 📝 **Typography** | Local Text Styles matching heading / body patterns (h1–h6, Big Heading, Body Text) |
+| 📄 **Editor** | All other Text Styles (labels, CTAs, captions, etc.) |
 
----
+### Token status
 
-### Token tabs
+Each token row shows how it's currently tracked:
 
-| Tab | What is scanned | Counts as "defined" when… |
-|---|---|---|
-| 🔤 **Font** | Font family + weight from all TEXT nodes | A Text Style is applied (`◈`) |
-| 📏 **Sizes** | Font size from all TEXT nodes | A font-size Variable **or** a Text Style is applied |
-| 📐 **Spacing** | `gap` and `padding` from auto-layout frames | A spacing Variable is bound |
-| 🎨 **Color** | Solid fills and strokes from all nodes | A Color Variable **or** a Color Style is applied |
-| 📝 **Typography** | h1–h6, Big Heading, Body Text styles from local Text Styles | — (display only) |
-| 📄 **Editor** | All other Text Styles (label, subtitle, CTA, caption, button, etc.) | — (display only) |
+- ✓ **Green** — bound to a Figma Variable
+- ◈ **Purple** — covered by a Text or Color Style
+- ⚠ **Amber** — untracked, with a suggested variable name
 
-Each token row shows:
-- A preview (color swatch, font preview, or numeric value)
-- Usage count
-- ✓ **Green** — bound to a Figma Variable (shows variable name)
-- ◈ **Purple** — covered by a Text or Color Style (shows style name)
-- ⚠ **Amber** — untracked, shows a suggested variable name
+### Actions
 
----
+| Action | How |
+|---|---|
+| Select matching nodes on canvas | Click the token value or the 🔍 icon |
+| Create a variable with the suggested name | Click **+ "suggested-name"** |
+| Customise the name before creating | Click **✎** |
+| Hide a token (excludes it from export) | Click **×** |
+
+> Font tab only: variables can't be created for font family/weight — use Figma Text Styles for those.
 
 ### Filtering
 
-- **Text search** — filter by value, variable name, style name, or page name
-- **All / ✓ / ⚠** toggle — show all, defined-only, or untracked-only tokens
+- **Search** by value, variable name, style name, or page name
+- **All / ✓ / ⚠** toggle to show all, defined-only, or untracked-only tokens
 
 ---
 
-### Actions per token
-
-| Control | Action |
-|---|---|
-| Click on the value | Selects all matching nodes on the canvas |
-| 🔍 icon | Same as clicking the value |
-| **+ "suggested-name"** | Creates a Figma Variable immediately with the suggested name |
-| **✎** | Opens a dialog to customise the name and collection before creating |
-| **×** | Hides the token from the list and excludes it from the JSON export |
-
-> **Font tab**: Variables cannot be created for font family/weight — use Figma Text Styles instead.
-
----
-
-### Typography and Editor tabs
-
-Both tabs read all local Text Styles from the current file and classify each style by name:
-
-**Typography** — style name matches any of:
-- `H1` through `H6` (standalone or embedded, e.g. `Heading - H1`, `H2 Bold`)
-- `Big Heading` (any capitalisation or with dashes)
-- `Body Text`, `Body Text 1`, `Body Text 2`, … (with optional number suffix)
-
-**Editor** — everything else:
-- Labels, subtitles, CTAs, captions, overlines, buttons, stats, etc.
-
-Styles are shown grouped by their Figma style group name (the part before `/` in the style name). Keys in the exported JSON are the slugified last segment of each style name.
-
----
-
-### Export JSON
+## Export JSON
 
 Click **Export JSON** to download `scan-design-token.json`.
-
-#### Format
 
 ```json
 {
@@ -132,93 +79,51 @@ Click **Export JSON** to download `scan-design-token.json`.
     "pages": 1,
     "nodes": 2372,
     "hidden": 0,
-    "summary": {
-      "font": 3,
-      "fontSize": 9,
-      "spacing": 6,
-      "color": 14,
-      "typography": 10,
-      "editor": 4
-    }
+    "summary": { "font": 3, "fontSize": 9, "spacing": 6, "color": 14, "typography": 10, "editor": 4 }
   },
   "font": [
-    { "family": "Inter",        "weight": [300, 400, 700] },
-    { "family": "Crimson Text", "weight": [400, 600] }
+    { "family": "Inter", "weight": [300, 400, 700] }
   ],
   "fontSize": [14, 16, 18, 20, 24, 28, 40, 48, 52],
-  "spacing":  [4, 8, 12, 16, 24, 32, 40, 48],
+  "spacing":  [4, 8, 12, 16, 24, 32],
   "color": {
-    "warmm":       "#8b6f5e",
-    "warm-gray-8": "#3d3430",
-    "white":       "#ffffff",
-    "000000":      "#000000",
-    "000000-40":   "rgba(0,0,0,0.4)"
+    "white": "#ffffff",
+    "black": "#000000",
+    "black-40": "rgba(0,0,0,0.4)"
   },
   "typography": {
-    "big-heading":  { "size": "96", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2", "letter-spacing": "0.05em" },
-    "h1":           { "size": "56", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2", "letter-spacing": "0.05em" },
-    "h2":           { "size": "48", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2" },
-    "body-text-1":  { "size": "14", "weight": "500", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.4" },
-    "body-text-2":  { "size": "16", "weight": "500", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.3" }
+    "h1": { "size": "56", "weight": "300", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.2", "letter-spacing": "0.05em" }
   },
   "editor": {
-    "sub-title": { "size": "14", "weight": "700", "font": "'Plus Jakarta Sans', sans-serif", "line-height": "1.4", "letter-spacing": "0.2143em" },
-    "label":     { "size": "12", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" },
-    "cta":       { "size": "15", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" }
+    "label": { "size": "12", "weight": "600", "font": "'Inter', sans-serif", "line-height": "1.4" }
   }
 }
 ```
 
-#### Field reference
-
-| Field | Description |
-|---|---|
-| `_meta.hidden` | Number of tokens removed with × and excluded from this export |
-| `font[].weight` | Numeric CSS font-weight values (100–900). Italic variants map to their base weight |
-| `fontSize` | Sorted array of unique px values |
-| `spacing` | Sorted array of unique px values from auto-layout gap and padding |
-| `color` key | Variable name → slugified, Color Style name → slugified, or hex fallback |
-| `color` value | Lowercase hex for 100% opacity; `rgba()` for partial opacity |
-| `typography` / `editor` key | Slugified last segment of the Figma style name (e.g. `Heading - H1` → `heading-h1`) |
-| `line-height` | Unitless ratio (e.g. `"1.2"` from 120%) |
-| `letter-spacing` | Em value (e.g. `"0.05em"`). Key is omitted when the value is 0 |
-
-#### Font weight reference
-
-| Figma style name | Exported weight |
-|---|---|
-| Thin | 100 |
-| Extra Light | 200 |
-| Light | 300 |
-| Regular / Normal / Italic | 400 |
-| Medium | 500 |
-| Semi Bold | 600 |
-| Bold / Bold Italic | 700 |
-| Extra Bold | 800 |
-| Black | 900 |
+- `hidden` — number of tokens removed with × and excluded from the export
+- `color` values — lowercase hex for full opacity, `rgba()` for partial opacity
+- `line-height` — unitless ratio (e.g. `"1.2"` = 120%)
+- `letter-spacing` — em value; omitted when 0
 
 ---
 
-## File structure
+## Known Limitations
+
+- Only scans the **current page** — nodes on other pages are not included.
+- **External shared libraries** are not scanned. Only local styles and variables in the current file are detected.
+- **Component variants** in a separate library file are not scanned — only the instance visible on the current page.
+- Decimal spacing values (e.g. `17.376px`) are real Figma values. Use × to hide noise before exporting.
+
+---
+
+## File Structure
 
 ```
 figma-token-scanner/
 ├── manifest.json   — Figma plugin configuration
-├── code.js         — Plugin main thread (Figma sandbox)
-├── ui.html         — Plugin UI (self-contained HTML + CSS + JS)
-└── README.md
+├── code.js         — Plugin logic (runs in Figma sandbox)
+└── ui.html         — Plugin UI (self-contained HTML + CSS + JS)
 ```
-
----
-
-## Known limitations
-
-- **Canvas highlight** selects nodes on the current page only.
-- **Hidden nodes** inside collapsed frames and accordion components are included in the scan via explicit tree traversal.
-- **Component variants** — if an accordion's open/closed states live in a main component on a separate library page, only the instance visible on the current page is scanned.
-- **Decimal spacing values** (e.g. `17.376px`) are real Figma auto-layout values. Use × to hide noise before exporting.
-- **Variables API** requires Figma Professional or Organization plan. Raw values are still scanned on free plans — variable bindings just won't be read.
-- **Shared libraries** from external files are not scanned. Only local styles and variables in the current file are detected.
 
 ---
 
